@@ -8,7 +8,7 @@
 #include <vector>
 #include <algorithm>
 
-std::string Chip8::cast_hex(const std::vector<uint8_t>& vec) const noexcept
+[[maybe_unused]] std::string Chip8::cast_hex(const std::vector<uint8_t>& vec) const noexcept
 {
     std::stringstream ss;
     ss << std::hex << std::setfill('0');
@@ -23,7 +23,7 @@ std::string Chip8::cast_hex(const std::vector<uint8_t>& vec) const noexcept
 
 void Chip8::loading_buffer_to_memory(const std::vector<uint8_t>& buffer) noexcept
 {
-    std::copy(buffer.begin(), buffer.end(), memory.begin() + MemoryAddr::START_LOCATION);
+    std::copy(buffer.begin(), buffer.end(), memory.begin() + Constants::START_LOCATION);
 }
 
 void Chip8::load_fontset() noexcept
@@ -60,22 +60,87 @@ void Chip8::disassemble_pc() noexcept
     // bc - low byte  - 8 bits
 
     // A 12-bit value, the lowest 12 bits of the instruction
-    uint16_t nnn = opcode & 0xFFF;              // addr
+    const uint16_t nnn = opcode & 0xFFF;              // addr
     // A 4-bit value, the lowest 4 bits of the instruction
-    uint8_t  n   = opcode & 0xF;                // nibble
+    const uint8_t  n   = opcode & 0xF;                // nibble
     // A 4-bit value, the lower 4 bits of the high byte of the instruction
-    uint8_t  x   = (opcode >> 8) & 0xF;         // x-axis
+    const uint8_t  x   = (opcode >> 8) & 0xF;         // x-axis
     // A 4-bit value, the upper 4 bits of the low byte of the instruction
-    uint8_t  y   = (opcode >> 4) & 0xF;         // y-axis
+    const uint8_t  y   = (opcode >> 4) & 0xF;         // y-axis
     // An 8-bit value, the lowest 8 bits of the instruction
-    uint8_t  kk  = memory[program_counter + 1]; // byte
+    const uint8_t  kk  = opcode & 0xFF; // byte
+
+    // Mask the first digit
+    switch (opcode & 0xF000)
+    {
+        case Constants::ZERO_OPCODE:
+            switch (opcode)
+            {
+                // 0NNN implementation not needed because
+                // i'm not trying to emulate RCA 1802 CPU
+                
+                case 0x00E0:
+
+                break;
+            }
+        break;
+
+        case Constants::ONE_OPCODE:
+        break;
+
+        case Constants::TWO_OPCODE:
+        break;
+
+        case Constants::THREE_OPCODE:
+        break;
+
+        case Constants::FOUR_OPCODE:
+        break;
+
+        case Constants::FIVE_OPCODE:
+        break;
+
+        case Constants::SIX_OPCODE:
+        break;
+
+        case Constants::SEVEN_OPCODE:
+        break;
+
+        case Constants::EIGHT_OPCODE:
+        break;
+
+        case Constants::NINE_OPCODE:
+        break;
+
+        case Constants::TEN_OPCODE:
+        break;
+
+        case Constants::ELEVEN_OPCODE:
+        break;
+
+        case Constants::TWELVE_OPCODE:
+        break;
+
+        case Constants::THIRTEEN_OPCODE:
+        break;
+
+        case Constants::FOURTEEN_OPCODE:
+        break;
+
+        case Constants::FIFTEEN_OPCODE:
+        break;
+
+        default:
+        std::cout << "Memory OPCODE is wrong!" << std::endl;
+        break;
+    }
 }
 
 void Chip8::disassemble_loop() noexcept
 {
     while(program_counter < memory.size())
     {
-        fetch_opcodes();
+        fetch_opcode();
         // std::cout << "Memory:" << std::hex << +memory[program_counter] << " " << std::hex << +memory[program_counter + 1];
         // std::cout << " - Opcode:" << std::hex << +opcode << "       ";
 
@@ -83,11 +148,11 @@ void Chip8::disassemble_loop() noexcept
 
         // jump in the memory by 2
         // because every instruction is 2 bytes long
-        program_counter += MemoryAddr::INSTRUCTION_BYTES;
+        program_counter += Constants::INSTRUCTION_BYTES;
     }
 }
 
-void Chip8::fetch_opcodes() noexcept
+void Chip8::fetch_opcode() noexcept
 {
     // shifting to left the memory[pc] by 8 bits
     // and then assign the next memory by using bitwise OR operation
@@ -96,7 +161,7 @@ void Chip8::fetch_opcodes() noexcept
 }
 
 Chip8::Chip8(const std::string& path)
-    : memory(MemoryAddr::MAXIMUM_BYTES)
+    : memory(Constants::MAXIMUM_BYTES)
 {
     std::ifstream file(path, std::ios::in     | 
                              std::ios::ate    | 

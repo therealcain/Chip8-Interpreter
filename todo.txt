@@ -1,0 +1,2 @@
+OPTIMIZATIONS:  
+    - get ride of the memory buffer and upload the binary file right into the memory.
