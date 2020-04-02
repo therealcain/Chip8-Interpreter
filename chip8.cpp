@@ -54,7 +54,7 @@ void Chip8::load_fontset() noexcept
 void Chip8::disassemble_pc() noexcept
 {
     // --- Chip8 Instructions
-    // example: a2 bc
+    // example: a2 bc - big endian
     // opcode = a2bc
     // a2 - high byte - 8 bits
     // bc - low byte  - 8 bits
@@ -91,7 +91,8 @@ void Chip8::fetch_opcodes() noexcept
 {
     // shifting to left the memory[pc] by 8 bits
     // and then assign the next memory by using bitwise OR operation
-    opcode = memory[program_counter] << 8 | memory[program_counter + 1]; // this is a nibble 
+    // example: a2 bc turns to 0xA2BC
+    opcode = memory[program_counter] << 8 | memory[program_counter + 1];
 }
 
 Chip8::Chip8(const std::string& path)
