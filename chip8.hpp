@@ -20,9 +20,9 @@ namespace MemoryAddr
 class Chip8
 {
 private:
-    std::string cast_hex(std::vector<uint8_t>& vec) const noexcept;
+    std::string cast_hex(const std::vector<uint8_t>& vec) const noexcept;
     
-    void loading_buffer_to_memory(std::vector<uint8_t>& buffer) noexcept;
+    void loading_buffer_to_memory(const std::vector<uint8_t>& buffer) noexcept;
     void load_fontset() noexcept;
 
     void disassemble_loop() noexcept;

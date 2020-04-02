@@ -8,12 +8,12 @@
 #include <vector>
 #include <algorithm>
 
-std::string Chip8::cast_hex(std::vector<uint8_t>& vec) const noexcept
+std::string Chip8::cast_hex(const std::vector<uint8_t>& vec) const noexcept
 {
     std::stringstream ss;
     ss << std::hex << std::setfill('0');
 
-    for(auto ch : vec) 
+    for(const auto ch : vec) 
     {
         ss << std::setw(2) << +ch << " ";
     }
@@ -21,14 +21,14 @@ std::string Chip8::cast_hex(std::vector<uint8_t>& vec) const noexcept
     return ss.str();
 }
 
-void Chip8::loading_buffer_to_memory(std::vector<uint8_t>& buffer) noexcept
+void Chip8::loading_buffer_to_memory(const std::vector<uint8_t>& buffer) noexcept
 {
     std::copy(buffer.begin(), buffer.end(), memory.begin() + MemoryAddr::START_LOCATION);
 }
 
 void Chip8::load_fontset() noexcept
 {
-    static const std::vector<uint8_t> fontset {
+    static constexpr std::initializer_list<uint8_t> fontset {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -69,8 +69,6 @@ void Chip8::disassemble_pc() noexcept
     uint8_t  y   = (opcode >> 4) & 0xF;         // y-axis
     // An 8-bit value, the lowest 8 bits of the instruction
     uint8_t  kk  = memory[program_counter + 1]; // byte
-
-    
 }
 
 void Chip8::disassemble_loop() noexcept
