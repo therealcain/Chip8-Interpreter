@@ -97,18 +97,15 @@ public:
 
 private:
     std::vector<uint8_t> memory;
-
-    // pseudo registers
-    uint16_t program_counter = C::START_LOCATION; // PC
-    uint16_t* stack_pointer  = nullptr;           // SP
-    
     std::array<uint8_t, 16> registers; // VO
     std::array<uint16_t, 24> stack;
 
-    uint16_t opcode;
+    uint16_t program_counter = C::START_LOCATION; // PC
+    uint16_t* p_stack        = nullptr;           // SP
+    
     uint16_t index; // I
+    uint16_t opcode;
 
-    // timers - rate 60hz
     uint16_t delay_timer = C::TIMER_HERTZ;
     uint16_t sound_timer = C::TIMER_HERTZ;
 };
