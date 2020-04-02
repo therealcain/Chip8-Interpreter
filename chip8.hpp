@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 
-#define PRINT_DIRECTIVE(x) puts(#x);
+// #define PRINT_DIRECTIVE(x) puts(#x);
 
 // the C++ way of Defines
 namespace MemoryAddr
@@ -13,8 +13,6 @@ namespace MemoryAddr
     constexpr auto START_LOCATION    = 0x200;
     constexpr auto MAXIMUM_BYTES     = 0xFFF;
     constexpr auto INSTRUCTION_BYTES = 2;
-    constexpr auto FIRST_BIT_MASK    = 0xF000;
-    constexpr auto LAST_BIT_MASK     = 0x000F;
 }
 
 class Chip8
@@ -28,7 +26,6 @@ private:
     void disassemble_loop() noexcept;
     void disassemble_pc() noexcept;
 
-    // opcodes
     void fetch_opcodes() noexcept;
     
 public:
