@@ -13,8 +13,6 @@ namespace MemoryAddr
     constexpr auto START_LOCATION    = 0x200;
     constexpr auto MAXIMUM_BYTES     = 0xFFF;
     constexpr auto INSTRUCTION_BYTES = 2;
-    constexpr auto FIRST_BIT_MASK    = 0xF000;
-    constexpr auto LAST_BIT_MASK     = 0x000F;
 }
 
 class Chip8
