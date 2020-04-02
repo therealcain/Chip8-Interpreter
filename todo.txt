@@ -1,2 +1,5 @@
 OPTIMIZATIONS:  
     - get ride of the memory buffer and upload the binary file right into the memory.
+
+UPDATE C++17:
+    - replace uint8_t with std:byte - for better readability and functionality.
