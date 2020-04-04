@@ -13,7 +13,7 @@ template<size_t STACK,
 struct CPU
 {
     std::array<uint16_t, STACK>                     stack     { 0 };
-    std::array< std::array<uint8_t, WIDTH>, HEIGHT> display   { 0 };
+    std::array< std::array<uint16_t, WIDTH>, HEIGHT> display   { 0 };
     std::array<uint8_t,  MEMORY>                    memory    { 0 };
     std::array<uint8_t,  REGISTER>                  registers { 0 };
     std::array<uint8_t,  KEYS>                      keypads   { 0 };

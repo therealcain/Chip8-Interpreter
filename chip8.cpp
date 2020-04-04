@@ -186,7 +186,7 @@ void Chip8::cycle() noexcept
     }
 
     // Display graphics
-    std::array<uint8_t, CHIP8_WIDTH * CHIP8_HEIGHT> display_buffer;
+    std::array<uint16_t, CHIP8_WIDTH * CHIP8_HEIGHT> display_buffer;
     for(size_t y = 0; y < display.size(); y++)
     {
         for(size_t x = 0; x < display[y].size(); x++)
@@ -196,7 +196,7 @@ void Chip8::cycle() noexcept
     }
 
     // Display the pixels
-    SDL_UpdateTexture(window_ref.texture, nullptr, display_buffer.data(), CHIP8_WIDTH * sizeof(uint8_t));
+    SDL_UpdateTexture(window_ref.texture, nullptr, display_buffer.data(), CHIP8_WIDTH * sizeof(uint16_t));
     window_ref.clear();
     SDL_RenderCopy(window_ref.renderer, window_ref.texture, nullptr, nullptr);
     window_ref.render();
@@ -379,13 +379,10 @@ void Chip8::OPCODE_DXYN_Impl()
 
         for(int x = 0; x < 8; x++)
         {
-            if((pixel & (0x80 >> x)) != 0)
-            {
-                registers[REGISTER_SIZE - 1] = display[(inst_var.x + x)][((inst_var.y + y) * CHIP8_WIDTH)] == 1 
-                    ? 1 : registers[REGISTER_SIZE - 1];
+            registers[REGISTER_SIZE - 1] = display[inst_var.x + x][inst_var.y + y] == 1 
+                ? 1 : registers[REGISTER_SIZE - 1];
 
-                display[(inst_var.x + x)][((inst_var.y + y) * CHIP8_WIDTH)] ^= 1;
-            }
+            display[inst_var.x + x][inst_var.y + y] ^= 1;
         }
     }
 }
