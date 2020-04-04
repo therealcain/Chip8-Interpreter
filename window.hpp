@@ -16,11 +16,6 @@ public:
     void clear() noexcept;
     void render() noexcept;
 
-    inline SDL_Texture* get_texture() noexcept
-    {
-        return texture;
-    }
-
 private:
     SDL_Window*   window   = nullptr;
     SDL_Renderer* renderer = nullptr;

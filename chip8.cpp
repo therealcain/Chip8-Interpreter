@@ -196,7 +196,7 @@ void Chip8::cycle() noexcept
     }
 
     // Display the pixels
-    SDL_UpdateTexture(window_ref.texture, nullptr, display_buffer.data(), CHIP8_WIDTH * sizeof(uint32_t));
+    SDL_UpdateTexture(window_ref.texture, nullptr, display_buffer.data(), CHIP8_WIDTH * sizeof(uint8_t));
     window_ref.clear();
     SDL_RenderCopy(window_ref.renderer, window_ref.texture, nullptr, nullptr);
     window_ref.render();
@@ -207,25 +207,29 @@ void Chip8::cycle() noexcept
 
 // This is not implemented because i'm not trying to 
 // emulate the RCA 1802 CPU
+// This instruction is only used on the old computers on which Chip-8 was originally implemented. It is ignored by modern interpreters.
 void Chip8::OPCODE_0NNN_Impl() {}
 
+// Clear the display.
 void Chip8::OPCODE_00E0_Impl()
 {
-    // resetting the display
     std::fill(&display[0][0], &display[0][0] + sizeof(display), 0);
 }
 
+// The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.
 void Chip8::OPCODE_00EE_Impl()
 {
     pc = stack.back();
     sp--;
 }
 
+// The interpreter sets the program counter to nnn.
 void Chip8::OPCODE_1NNN_Impl()
 {
     pc = inst_var.nnn;
 }  
 
+// The interpreter increments the stack pointer, then puts the current PC on the top of the stack. The PC is then set to nnn.
 void Chip8::OPCODE_2NNN_Impl()
 {
     sp++;
@@ -233,54 +237,68 @@ void Chip8::OPCODE_2NNN_Impl()
     pc = inst_var.nnn;
 }
 
+// The interpreter compares register Vx to kk, and if they are equal, increments the program counter by 2.
 void Chip8::OPCODE_3XKK_Impl()
 {
     pc = registers[inst_var.x] == inst_var.kk 
         ? pc + INSTRUCTION_LONG : pc;
 }
 
+// The interpreter compares register Vx to kk, and if they are not equal, increments the program counter by 2.
 void Chip8::OPCODE_4XKK_Impl()
 {
     pc = registers[inst_var.x] != inst_var.kk 
         ? pc + INSTRUCTION_LONG : pc;
 }
 
+// The interpreter compares register Vx to register Vy, and if they are equal, increments the program counter by 2.
 void Chip8::OPCODE_5XY0_Impl()
 {
     pc = registers[inst_var.x] == registers[inst_var.y] 
         ? pc + INSTRUCTION_LONG : pc;
 }
 
+// The interpreter puts the value kk into register Vx.
 void Chip8::OPCODE_6XKK_Impl()
 {
     registers[inst_var.x] = inst_var.kk;
 }
 
+// Adds the value kk to the value of register Vx, then stores the result in Vx. 
 void Chip8::OPCODE_7XKK_Impl()
 {
     registers[inst_var.x] += inst_var.kk;
 }
 
+// Stores the value of register Vy in register Vx.
 void Chip8::OPCODE_8XY0_Impl()
 {
     registers[inst_var.x] = registers[inst_var.y];
 }
 
+// Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx. 
+// A bitwise OR compares the corrseponding bits from two values, and if either bit is 1, then the same bit in the result is also 1. Otherwise, it is 0. 
 void Chip8::OPCODE_8XY1_Impl()
 {
     registers[inst_var.x] |= registers[inst_var.y];
 }   
 
+// Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx. 
+// A bitwise AND compares the corrseponding bits from two values, and if both bits are 1, then the same bit in the result is also 1. Otherwise, it is 0. 
 void Chip8::OPCODE_8XY2_Impl()
 {
     registers[inst_var.x] &= registers[inst_var.y];
 }
 
+// Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. 
+// An exclusive OR compares the corrseponding bits from two values, and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
 void Chip8::OPCODE_8XY3_Impl()
 {
     registers[inst_var.x] ^= registers[inst_var.y];
 }
 
+// The values of Vx and Vy are added together. 
+// If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
 void Chip8::OPCODE_8XY4_Impl()
 {
     const auto sum = registers[inst_var.x] + registers[inst_var.y];
@@ -289,6 +307,7 @@ void Chip8::OPCODE_8XY4_Impl()
         ? 1 : 0; 
 }
 
+// If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
 void Chip8::OPCODE_8XY5_Impl()
 {
     registers[REGISTER_SIZE - 1] = registers[inst_var.x] > registers[inst_var.y] 
@@ -297,12 +316,14 @@ void Chip8::OPCODE_8XY5_Impl()
     registers[inst_var.x] -= registers[inst_var.y];
 }
 
+// If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. Then Vx is divided by 2.
 void Chip8::OPCODE_8XY6_Impl()
 {
     registers[REGISTER_SIZE - 1] = registers[inst_var.x] & 0x1;
     registers[inst_var.x] /= 2;
 }
 
+// If Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results stored in Vx.
 void Chip8::OPCODE_8XY7_Impl()
 {
     registers[REGISTER_SIZE - 1] = registers[inst_var.y] > registers[inst_var.x] 
@@ -311,33 +332,42 @@ void Chip8::OPCODE_8XY7_Impl()
     registers[inst_var.x] = registers[inst_var.y] - registers[inst_var.x];
 }
 
+// If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0. Then Vx is multiplied by 2.
 void Chip8::OPCODE_8XYE_Impl()
 {
     registers[REGISTER_SIZE - 1] = (registers[inst_var.x] & 0x80) >> 7;
     registers[inst_var.x] *= 2;
 }
 
+// The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
 void Chip8::OPCODE_9XY0_Impl()
 {
     pc = registers[inst_var.x] != registers[inst_var.y] 
         ? pc + 2 : pc;
 }
 
+// The value of register I is set to nnn.
 void Chip8::OPCODE_ANNN_Impl()
 {
     I = inst_var.nnn;
 }
 
+// The program counter is set to nnn plus the value of V0.
 void Chip8::OPCODE_BNNN_Impl()
 {
     pc = registers[0] + inst_var.nnn;
 }
 
+// The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk. The results are stored in Vx.
 void Chip8::OPCODE_CXKK_Impl()
 {
     registers[inst_var.x] = random_byte() & inst_var.kk;
 }
 
+// The interpreter reads n bytes from memory, starting at the address stored in I. 
+// These bytes are then displayed as sprites on screen at coordinates (Vx, Vy). 
+// Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0. 
+// If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen.
 void Chip8::OPCODE_DXYN_Impl()
 {
     registers[REGISTER_SIZE - 1] = 0;
@@ -360,23 +390,27 @@ void Chip8::OPCODE_DXYN_Impl()
     }
 }
 
+// Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
 void Chip8::OPCODE_EX9E_Impl()
 {
     pc = keypads[registers[inst_var.x]] != 0 
         ? pc + INSTRUCTION_LONG : pc;
 }
 
+// Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
 void Chip8::OPCODE_EXA1_Impl()
 {
     pc = keypads[registers[inst_var.x]] == 0 
         ? pc + INSTRUCTION_LONG : pc;
 }
 
+// The value of DT is placed into Vx.
 void Chip8::OPCODE_FX07_Impl()
 {
     registers[inst_var.x] = dt;
 }
 
+// All execution stops until a key is pressed, then the value of that key is stored in Vx.
 void Chip8::OPCODE_FX0A_Impl()
 {
     for(int i = 0; i < KEYPADS_SIZE; i++)
@@ -388,24 +422,29 @@ void Chip8::OPCODE_FX0A_Impl()
     }
 }
 
+// DT is set equal to the value of Vx.
 void Chip8::OPCODE_FX15_Impl()
 {
     dt = registers[inst_var.x];
 }
 
 // sound not implemented
+// ST is set equal to the value of Vx.
 void Chip8::OPCODE_FX18_Impl() {}
 
+// The values of I and Vx are added, and the results are stored in I.
 void Chip8::OPCODE_FX1E_Impl()
 {
     I += registers[REGISTER_SIZE - 1];
 }
 
+// The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx.
 void Chip8::OPCODE_FX29_Impl()
 {
     I = registers[inst_var.x] * 5;
 }   
 
+// The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
 void Chip8::OPCODE_FX33_Impl()
 {
     uint8_t value = registers[inst_var.x];
@@ -419,6 +458,7 @@ void Chip8::OPCODE_FX33_Impl()
     memory[I] = value % 10;
 }
 
+// The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
 void Chip8::OPCODE_FX55_Impl()
 {
     for(uint8_t i = 0; i <= inst_var.x; i++) 
@@ -427,6 +467,7 @@ void Chip8::OPCODE_FX55_Impl()
     }
 }
 
+// The interpreter reads values from memory starting at location I into registers V0 through Vx.
 void Chip8::OPCODE_FX65_Impl()
 {
     for(uint8_t i = 0; i <= inst_var.x; i++)
