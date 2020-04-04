@@ -18,9 +18,6 @@ Chip8::Chip8(const std::string& file_path, Window& window)
 
     if(file.is_open())
     {
-        // initalize the values in CPU
-        pc = LOCATION_START;
-
         // get file size in bytes
         const std::streampos size = file.tellg();
 
@@ -32,8 +29,8 @@ Chip8::Chip8(const std::string& file_path, Window& window)
    
         copy_fonts_to_memory();
 
-        window_ref.texture = SDL_CreateTexture(window_ref.renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 
-                                               CHIP8_WIDTH, CHIP8_HEIGHT);
+        window_ref.texture = SDL_CreateTexture(window_ref.renderer, SDL_PIXELFORMAT_ARGB8888, 
+                                               SDL_TEXTUREACCESS_STREAMING, CHIP8_WIDTH, CHIP8_HEIGHT);
 
         // Starting position of CPU
         pc = LOCATION_START;
@@ -365,12 +362,14 @@ void Chip8::OPCODE_DXYN_Impl()
 
 void Chip8::OPCODE_EX9E_Impl()
 {
-    pc = keypads[registers[inst_var.x]] != 0 ? pc + INSTRUCTION_LONG : pc;
+    pc = keypads[registers[inst_var.x]] != 0 
+        ? pc + INSTRUCTION_LONG : pc;
 }
 
 void Chip8::OPCODE_EXA1_Impl()
 {
-    pc = keypads[registers[inst_var.x]] == 0 ? pc + INSTRUCTION_LONG : pc;
+    pc = keypads[registers[inst_var.x]] == 0 
+        ? pc + INSTRUCTION_LONG : pc;
 }
 
 void Chip8::OPCODE_FX07_Impl()
