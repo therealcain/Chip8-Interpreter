@@ -1,34 +1,89 @@
 #include "chip8.hpp"
 
 #include <fstream>
-#include <iostream>
 #include <exception>
+#include <iostream>
 #include <sstream>
 #include <iomanip>
-#include <vector>
 #include <algorithm>
+#include <random>
+#include <initializer_list>
 
-[[maybe_unused]] std::string Chip8::cast_hex(const std::vector<uint8_t>& vec) const noexcept
+Chip8::Chip8(const std::string& file_path, Window& window)
+    : window_ref(window)
 {
-    std::stringstream ss;
-    ss << std::hex << std::setfill('0');
+    std::ifstream file(file_path, std::ifstream::ate    | // start from the end
+                                  std::ifstream::binary | // file is binary
+                                  std::ifstream::in);     // planning on only input
 
-    for(const auto ch : vec) 
+    if(file.is_open())
     {
-        ss << std::setw(2) << +ch << " ";
+        // initalize the values in CPU
+        pc = LOCATION_START;
+
+        // get file size in bytes
+        const std::streampos size = file.tellg();
+
+        // start reading in the beginning
+        file.seekg(0, std::ios::beg);
+
+        // File read expecting char*
+        file.read(reinterpret_cast<char*>(memory.data() + LOCATION_START), size);
+   
+        copy_fonts_to_memory();
+
+        window_ref.texture = SDL_CreateTexture(window_ref.renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 
+                                               CHIP8_WIDTH, CHIP8_HEIGHT);
+
+        // Starting position of CPU
+        pc = LOCATION_START;
+
+        // setting up the opcode table
+        opcode_table[OPCODE_0NNN] = [this](){ OPCODE_0NNN_Impl(); };
+        opcode_table[OPCODE_00E0] = [this](){ OPCODE_00E0_Impl(); };
+        opcode_table[OPCODE_00EE] = [this](){ OPCODE_00EE_Impl(); };
+        opcode_table[OPCODE_1NNN] = [this](){ OPCODE_1NNN_Impl(); };
+        opcode_table[OPCODE_2NNN] = [this](){ OPCODE_2NNN_Impl(); };
+        opcode_table[OPCODE_3XKK] = [this](){ OPCODE_3XKK_Impl(); };
+        opcode_table[OPCODE_4XKK] = [this](){ OPCODE_4XKK_Impl(); };
+        opcode_table[OPCODE_5XY0] = [this](){ OPCODE_5XY0_Impl(); };
+        opcode_table[OPCODE_6XKK] = [this](){ OPCODE_6XKK_Impl(); };
+        opcode_table[OPCODE_7XKK] = [this](){ OPCODE_7XKK_Impl(); };
+        opcode_table[OPCODE_8XY0] = [this](){ OPCODE_8XY0_Impl(); };
+        opcode_table[OPCODE_8XY1] = [this](){ OPCODE_8XY1_Impl(); };
+        opcode_table[OPCODE_8XY2] = [this](){ OPCODE_8XY2_Impl(); };
+        opcode_table[OPCODE_8XY3] = [this](){ OPCODE_8XY3_Impl(); };
+        opcode_table[OPCODE_8XY4] = [this](){ OPCODE_8XY4_Impl(); };
+        opcode_table[OPCODE_8XY5] = [this](){ OPCODE_8XY5_Impl(); };
+        opcode_table[OPCODE_8XY6] = [this](){ OPCODE_8XY6_Impl(); };
+        opcode_table[OPCODE_8XY7] = [this](){ OPCODE_8XY7_Impl(); };
+        opcode_table[OPCODE_8XYE] = [this](){ OPCODE_8XYE_Impl(); };
+        opcode_table[OPCODE_9XY0] = [this](){ OPCODE_9XY0_Impl(); };
+        opcode_table[OPCODE_ANNN] = [this](){ OPCODE_ANNN_Impl(); };
+        opcode_table[OPCODE_BNNN] = [this](){ OPCODE_BNNN_Impl(); };
+        opcode_table[OPCODE_CXKK] = [this](){ OPCODE_CXKK_Impl(); };
+        opcode_table[OPCODE_DXYN] = [this](){ OPCODE_DXYN_Impl(); };
+        opcode_table[OPCODE_EX9E] = [this](){ OPCODE_EX9E_Impl(); };
+        opcode_table[OPCODE_EXA1] = [this](){ OPCODE_EXA1_Impl(); };
+        opcode_table[OPCODE_FX07] = [this](){ OPCODE_FX07_Impl(); };
+        opcode_table[OPCODE_FX0A] = [this](){ OPCODE_FX0A_Impl(); };
+        opcode_table[OPCODE_FX15] = [this](){ OPCODE_FX15_Impl(); };
+        opcode_table[OPCODE_FX18] = [this](){ OPCODE_FX18_Impl(); };
+        opcode_table[OPCODE_FX1E] = [this](){ OPCODE_FX1E_Impl(); };
+        opcode_table[OPCODE_FX29] = [this](){ OPCODE_FX29_Impl(); };
+        opcode_table[OPCODE_FX33] = [this](){ OPCODE_FX33_Impl(); };
+        opcode_table[OPCODE_FX55] = [this](){ OPCODE_FX55_Impl(); };
+        opcode_table[OPCODE_FX65] = [this](){ OPCODE_FX65_Impl(); };
     }
-
-    return ss.str();
+    else
+    {
+        throw std::invalid_argument("Path is invalid!");
+    }
 }
 
-void Chip8::loading_buffer_to_memory(const std::vector<uint8_t>& buffer) noexcept
+void Chip8::copy_fonts_to_memory() noexcept
 {
-    std::copy(buffer.begin(), buffer.end(), memory.begin() + C::START_LOCATION);
-}
-
-void Chip8::load_fontset() noexcept
-{
-    static constexpr std::initializer_list<uint8_t> fontset {
+    static constexpr std::initializer_list<int> fontset {
         0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
         0x20, 0x60, 0x20, 0x20, 0x70, // 1
         0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -47,262 +102,336 @@ void Chip8::load_fontset() noexcept
         0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
 
-    // copy all of the fontsets to memory
+    // copy all fontset to memory
     std::copy(fontset.begin(), fontset.end(), memory.begin());
 }
 
-void Chip8::disassemble_pc() noexcept
+#if ENABLE_DEBUG_MODE
+std::string Chip8::get_memory_as_string(size_t min, size_t max) const noexcept
 {
-    // --- Chip8 Instructions
-    // example: a2 bc - big endian
-    // opcode = a2bc
-    // a2 - high byte - 8 bits
-    // bc - low byte  - 8 bits
+    std::stringstream ss;
 
-    // A 12-bit value, the lowest 12 bits of the instruction
-    const uint16_t nnn = opcode & 0xFFF;              // addr
-    // A 4-bit value, the lowest 4 bits of the instruction
-    const uint8_t  n   = opcode & 0xF;                // nibble
-    // A 4-bit value, the lower 4 bits of the high byte of the instruction
-    const uint8_t  x   = (opcode >> 8) & 0xF;         // x-axis
-    // A 4-bit value, the upper 4 bits of the low byte of the instruction
-    const uint8_t  y   = (opcode >> 4) & 0xF;         // y-axis
-    // An 8-bit value, the lowest 8 bits of the instruction
-    const uint8_t  kk  = opcode & 0xFF;               // byte
+    // telling the stream that the characters are going to be hexadecimals
+    // and if there is no character put 0 instead
+    ss << std::hex << std::setfill('0');
 
-    // Mask the first digit
-    switch (opcode & 0xF000)
+    for(size_t i = 0; i < memory.size(); i++)
     {
-        case C::ZERO_OPCODE:
-            switch (opcode & 0x00FF)
-            {
-                // 0NNN implementation not needed because
-                // i'm not trying to emulate RCA 1802 CPU
-                
-                case C::OPCODE_00E0:
-                PRINT_DIRECTIVE(C::OPCODE_00E0);
-                break;
-
-                case C::OPCODE_00EE:
-                PRINT_DIRECTIVE(C::OPCODE_00EE);
-                break;
-
-                default:
-                    std::cout << C::MEMORY_OPCODE_ERROR_MSG << std::endl;
-                break;
-            }
-        break;
-
-        case C::ONE_OPCODE:   // 1NNN
-            PRINT_DIRECTIVE(C::ONE_OPCODE);
-        break;
-
-        case C::TWO_OPCODE:   // 2NNN
-            PRINT_DIRECTIVE(C::TWO_OPCODE);
-        break;
-
-        case C::THREE_OPCODE: // 3XNN
-            PRINT_DIRECTIVE(C::THREE_OPCODE);
-        break;
-
-        case C::FOUR_OPCODE:  // 4XNN
-            PRINT_DIRECTIVE(C::FOUR_OPCODE);
-        break;
-
-        case C::FIVE_OPCODE:  // 5XY0
-            PRINT_DIRECTIVE(C::FIVE_OPCODE);
-        break;
-
-        case C::SIX_OPCODE:   // 6XNN
-            PRINT_DIRECTIVE(C::SIX_OPCODE);
-        break;
-
-        case C::SEVEN_OPCODE: // 7XNN
-            PRINT_DIRECTIVE(C::SEVEN_OPCODE);
-        break;
-
-        case C::EIGHT_OPCODE:
-            switch (opcode & 0x000F)
-            {
-                case C::OPCODE_8XY0:
-                    PRINT_DIRECTIVE(C::OPCODE_8XY0);
-                break;
-
-                case C::OPCODE_8XY1:
-                    PRINT_DIRECTIVE(C::OPCODE_8XY1);
-                break;
-
-                case C::OPCODE_8XY2:
-                    PRINT_DIRECTIVE(C::OPCODE_8XY2);
-                break;
-
-                case C::OPCODE_8XY3:
-                    PRINT_DIRECTIVE(C::OPCODE_8XY3);
-                break;
-
-                case C::OPCODE_8XY4:
-                    PRINT_DIRECTIVE(C::OPCODE_8XY4);
-                break;
-
-                case C::OPCODE_8XY5:
-                    PRINT_DIRECTIVE(C::OPCODE_8XY5);
-                break;
-
-                case C::OPCODE_8XY6:
-                    PRINT_DIRECTIVE(C::OPCODE_8XY6);
-                break;
-
-                case C::OPCODE_8XY7:
-                    PRINT_DIRECTIVE(C::OPCODE_8XY7);
-                break;
-
-                case C::OPCODE_8XYE:
-                    PRINT_DIRECTIVE(C::OPCODE_8XYE);
-                break;
-
-                default:
-                    std::cout << C::MEMORY_OPCODE_ERROR_MSG << std::endl;
-                break;
-            }
-        break;
-
-        case C::NINE_OPCODE:     // 9XY0
-            PRINT_DIRECTIVE(C::NINE_OPCODE);
-        break;
-
-        case C::TEN_OPCODE:      // ANNN
-            PRINT_DIRECTIVE(C::TEN_OPCODE);
-        break;
-
-        case C::ELEVEN_OPCODE:   // BNNN
-            PRINT_DIRECTIVE(C::ELEVEN_OPCODE);
-        break;
-
-        case C::TWELVE_OPCODE:   // CXNN
-            PRINT_DIRECTIVE(C::TWELVE_OPCODE);
-        break;
-
-        case C::THIRTEEN_OPCODE: // DXYN
-            PRINT_DIRECTIVE(C::THIRTEEN_OPCODE);
-        break;
-
-        case C::FOURTEEN_OPCODE:
-            switch (opcode & 0x000F)
-            {
-                case C::OPCODE_EX9E:
-                PRINT_DIRECTIVE(C::OPCODE_EX9E);
-                break;
-
-                case C::OPCODE_EXA1:
-                PRINT_DIRECTIVE(C::OPCODE_EXA1);
-                break;
-
-                default:
-                std::cout << C::MEMORY_OPCODE_ERROR_MSG << std::endl;
-                break;
-            }
-        break;
-
-        case C::FIFTEEN_OPCODE:
-            switch (opcode & 0x00FF)
-            {
-                case C::OPCODE_FX07:
-                PRINT_DIRECTIVE(C::OPCODE_FX07);
-                break;
-
-                case C::OPCODE_FX0A:
-                PRINT_DIRECTIVE(C::OPCODE_FX0A);
-                break;
-
-                case C::OPCODE_FX15:
-                PRINT_DIRECTIVE(C::OPCODE_FX15);
-                break;
-
-                case C::OPCODE_FX18:
-                PRINT_DIRECTIVE(C::OPCODE_FX18);
-                break;
-
-                case C::OPCODE_FX1E:
-                PRINT_DIRECTIVE(C::OPCODE_FX1E);
-                break;
-
-                case C::OPCODE_FX29:
-                PRINT_DIRECTIVE(C::OPCODE_FX29);
-                break;
-
-                case C::OPCODE_FX33:
-                PRINT_DIRECTIVE(C::OPCODE_FX33);
-                break;
-
-                case C::OPCODE_FX55:
-                PRINT_DIRECTIVE(C::OPCODE_FX55);
-                break;
-
-                case C::OPCODE_FX65:
-                PRINT_DIRECTIVE(C::OPCODE_FX65);
-                break;
-
-                default:
-                std::cout << C::MEMORY_OPCODE_ERROR_MSG << std::endl;
-                break;
-            }
-        break;
-
-        default:
-        std::cout << "Memory OPCODE is wrong!" << std::endl;
-        break;
+        // make sure i is between min and max
+        if(i >= min && i <= max)
+        {
+            // pushing the character into the stream and make sure it's 2 letter;
+            ss << " " << std::setw(2) << +memory[i] << " " << opcode << "  ";
+        }
     }
+
+    return ss.str();
 }
 
-void Chip8::disassemble_loop() noexcept
+void Chip8::clear_terminal() const noexcept
 {
-    while(program_counter < memory.size())
-    {
-        fetch_opcode();
-        // std::cout << "Memory:" << std::hex << +memory[program_counter] << " " << std::hex << +memory[program_counter + 1];
-        // std::cout << " - Opcode:" << std::hex << +opcode << "       ";
-
-        disassemble_pc();
-
-        // jump in the memory by 2
-        // because every instruction is 2 bytes long
-        program_counter += C::INSTRUCTION_BYTES;
-    }
+    // UGHHH std::system is being used
+    #if __linux__
+    std::system("clear");
+    #elif _WIN32
+    std::system("cls");
+    #endif
 }
+#endif // ENABLE_DEBUG_MODE
 
 void Chip8::fetch_opcode() noexcept
 {
     // shifting to left the memory[pc] by 8 bits
     // and then assign the next memory by using bitwise OR operation
     // example: a2 bc turns to 0xA2BC
-    opcode = memory[program_counter] << 8 | memory[program_counter + 1];
+    opcode = memory[pc] << 8 | memory[pc + 1];
 }
 
-Chip8::Chip8(const std::string& path)
-    : memory(C::MAXIMUM_BYTES)
+void Chip8::fetch_instruction_variables() noexcept
 {
-    std::ifstream file(path, std::ios::in     | 
-                             std::ios::ate    | 
-                             std::ios::binary);
-    if(file.is_open())
+    // A 12-bit value, the lowest 12 bits of the instruction
+    inst_var.nnn = opcode & 0xFFF;      // addr
+    // A 4-bit value, the lowest 4 bits of the instruction
+    inst_var.n   = opcode & 0xF;        // nibble
+    // A 4-bit value, the lower 4 bits of the high byte of the instruction
+    inst_var.x   = (opcode >> 8) & 0xF; // x-axis
+    // A 4-bit value, the upper 4 bits of the low byte of the instruction
+    inst_var.y   = (opcode >> 4) & 0xF; // y-axis
+    // An 8-bit value, the lowest 8 bits of the instruction
+    inst_var.kk  = opcode & 0xFF;       // byte
+}
+
+// generating a random byte
+uint8_t Chip8::random_byte() const noexcept
+{
+    std::random_device rd;
+    std::mt19937 eng(rd());
+    std::uniform_int_distribution<> distr(0, 255);
+    return distr(eng);
+}
+
+void Chip8::cycle() noexcept
+{
+    // priting out all of the memory
+    #if ENABLE_DEBUG_MODE
+    clear_terminal();
+    std::cout << std::hex << get_memory_as_string(LOCATION_START, 1000) << std::endl;
+    #endif // ENABLE_DEBUG_MODE
+    
+    fetch_opcode();
+
+    // Mask to remove the least important bit in the first nibble
+    const auto masked_opcode =  opcode & 0xF0FF;
+    if(opcode_table.count(masked_opcode) >= 1)
     {
-        // get the size of file in bytes
-        const std::streampos size = file.tellg();
-
-        std::vector<uint8_t> buffer(size);
-
-        // start reading in the beginning ( index 0 )
-        file.seekg(0, std::ios::beg);
-        file.read(reinterpret_cast<char*>(buffer.data()), size);
-
-        load_fontset();        
-        loading_buffer_to_memory(buffer);
-        buffer.clear();
-
-        disassemble_loop();
+        fetch_instruction_variables();
+        opcode_table[masked_opcode]();
     }
-    else 
+
+    // Display graphics
+    std::array<uint8_t, CHIP8_WIDTH * CHIP8_HEIGHT> display_buffer;
+    for(size_t y = 0; y < display.size(); y++)
     {
-        throw std::runtime_error("File could not be found!");
+        for(size_t x = 0; x < display[y].size(); x++)
+        {
+            display_buffer[y + x] = display[y][x];
+        }
+    }
+
+    // Display the pixels
+    SDL_UpdateTexture(window_ref.texture, nullptr, display_buffer.data(), CHIP8_WIDTH * sizeof(uint32_t));
+    window_ref.clear();
+    SDL_RenderCopy(window_ref.renderer, window_ref.texture, nullptr, nullptr);
+    window_ref.render();
+
+    // All instructions are 2 bytes long.
+    pc += INSTRUCTION_LONG;
+}
+
+// This is not implemented because i'm not trying to 
+// emulate the RCA 1802 CPU
+void Chip8::OPCODE_0NNN_Impl() {}
+
+void Chip8::OPCODE_00E0_Impl()
+{
+    // resetting the display
+    std::fill(&display[0][0], &display[0][0] + sizeof(display), 0);
+}
+
+void Chip8::OPCODE_00EE_Impl()
+{
+    pc = stack.back();
+    sp--;
+}
+
+void Chip8::OPCODE_1NNN_Impl()
+{
+    pc = inst_var.nnn;
+}  
+
+void Chip8::OPCODE_2NNN_Impl()
+{
+    sp++;
+    stack[STACK_SIZE - 1] = pc;
+    pc = inst_var.nnn;
+}
+
+void Chip8::OPCODE_3XKK_Impl()
+{
+    pc = registers[inst_var.x] == inst_var.kk 
+        ? pc + INSTRUCTION_LONG : pc;
+}
+
+void Chip8::OPCODE_4XKK_Impl()
+{
+    pc = registers[inst_var.x] != inst_var.kk 
+        ? pc + INSTRUCTION_LONG : pc;
+}
+
+void Chip8::OPCODE_5XY0_Impl()
+{
+    pc = registers[inst_var.x] == registers[inst_var.y] 
+        ? pc + INSTRUCTION_LONG : pc;
+}
+
+void Chip8::OPCODE_6XKK_Impl()
+{
+    registers[inst_var.x] = inst_var.kk;
+}
+
+void Chip8::OPCODE_7XKK_Impl()
+{
+    registers[inst_var.x] += inst_var.kk;
+}
+
+void Chip8::OPCODE_8XY0_Impl()
+{
+    registers[inst_var.x] = registers[inst_var.y];
+}
+
+void Chip8::OPCODE_8XY1_Impl()
+{
+    registers[inst_var.x] |= registers[inst_var.y];
+}   
+
+void Chip8::OPCODE_8XY2_Impl()
+{
+    registers[inst_var.x] &= registers[inst_var.y];
+}
+
+void Chip8::OPCODE_8XY3_Impl()
+{
+    registers[inst_var.x] ^= registers[inst_var.y];
+}
+
+void Chip8::OPCODE_8XY4_Impl()
+{
+    const auto sum = registers[inst_var.x] + registers[inst_var.y];
+    // checking a carry when sum bigger than a byte
+    registers[REGISTER_SIZE - 1] = sum > 255 
+        ? 1 : 0; 
+}
+
+void Chip8::OPCODE_8XY5_Impl()
+{
+    registers[REGISTER_SIZE - 1] = registers[inst_var.x] > registers[inst_var.y] 
+        ? 1 : 0;
+
+    registers[inst_var.x] -= registers[inst_var.y];
+}
+
+void Chip8::OPCODE_8XY6_Impl()
+{
+    registers[REGISTER_SIZE - 1] = registers[inst_var.x] & 0x1;
+    registers[inst_var.x] /= 2;
+}
+
+void Chip8::OPCODE_8XY7_Impl()
+{
+    registers[REGISTER_SIZE - 1] = registers[inst_var.y] > registers[inst_var.x] 
+        ? 1 : 0;
+
+    registers[inst_var.x] = registers[inst_var.y] - registers[inst_var.x];
+}
+
+void Chip8::OPCODE_8XYE_Impl()
+{
+    registers[REGISTER_SIZE - 1] = (registers[inst_var.x] & 0x80) >> 7;
+    registers[inst_var.x] *= 2;
+}
+
+void Chip8::OPCODE_9XY0_Impl()
+{
+    pc = registers[inst_var.x] != registers[inst_var.y] 
+        ? pc + 2 : pc;
+}
+
+void Chip8::OPCODE_ANNN_Impl()
+{
+    I = inst_var.nnn;
+}
+
+void Chip8::OPCODE_BNNN_Impl()
+{
+    pc = registers[0] + inst_var.nnn;
+}
+
+void Chip8::OPCODE_CXKK_Impl()
+{
+    registers[inst_var.x] = random_byte() & inst_var.kk;
+}
+
+void Chip8::OPCODE_DXYN_Impl()
+{
+    registers[REGISTER_SIZE - 1] = 0;
+
+    uint16_t pixel;
+    for(int y = 0; y < inst_var.n; y++)
+    {
+        pixel = memory[I + y];
+
+        for(int x = 0; x < 8; x++)
+        {
+            if((pixel & (0x80 >> x)) != 0)
+            {
+                registers[REGISTER_SIZE - 1] = display[(inst_var.x + x)][((inst_var.y + y) * CHIP8_WIDTH)] == 1 
+                    ? 1 : registers[REGISTER_SIZE - 1];
+
+                display[(inst_var.x + x)][((inst_var.y + y) * CHIP8_WIDTH)] ^= 1;
+            }
+        }
+    }
+}
+
+void Chip8::OPCODE_EX9E_Impl()
+{
+    pc = keypads[registers[inst_var.x]] != 0 ? pc + INSTRUCTION_LONG : pc;
+}
+
+void Chip8::OPCODE_EXA1_Impl()
+{
+    pc = keypads[registers[inst_var.x]] == 0 ? pc + INSTRUCTION_LONG : pc;
+}
+
+void Chip8::OPCODE_FX07_Impl()
+{
+    registers[inst_var.x] = dt;
+}
+
+void Chip8::OPCODE_FX0A_Impl()
+{
+    for(int i = 0; i < KEYPADS_SIZE; i++)
+    {
+        if(keypads[i] != 0)
+        {
+            registers[inst_var.x] = keypads[i];
+        }
+    }
+}
+
+void Chip8::OPCODE_FX15_Impl()
+{
+    dt = registers[inst_var.x];
+}
+
+// sound not implemented
+void Chip8::OPCODE_FX18_Impl() {}
+
+void Chip8::OPCODE_FX1E_Impl()
+{
+    I += registers[REGISTER_SIZE - 1];
+}
+
+void Chip8::OPCODE_FX29_Impl()
+{
+    I = registers[inst_var.x] * 5;
+}   
+
+void Chip8::OPCODE_FX33_Impl()
+{
+    uint8_t value = registers[inst_var.x];
+
+    memory[I + 2] = value % 10; 
+    value /= 10;
+
+    memory[I + 1] = value % 10;
+    value /= 10;
+
+    memory[I] = value % 10;
+}
+
+void Chip8::OPCODE_FX55_Impl()
+{
+    for(uint8_t i = 0; i <= inst_var.x; i++) 
+    {
+        memory[I + i] = registers[i];
+    }
+}
+
+void Chip8::OPCODE_FX65_Impl()
+{
+    for(uint8_t i = 0; i <= inst_var.x; i++)
+    {
+        registers[i] = memory[I + i];
     }
 }

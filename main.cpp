@@ -1,20 +1,38 @@
-#include "chip8.hpp"
+#include <SDL2/SDL.h>
 
 #include <iostream>
+#include <exception>
 
-int main(int argv, char* argc[]) 
+#include "chip8.hpp"
+#include "window.hpp"
+
+#if ENABLE_DEBUG_MODE
+    #if (not __linux__ && not _WIN32)
+    throw std::runtime_error("Debug mode is not available to your operating system!");
+    #endif // not linux && windows
+#endif // ENABLE_DEBUG_MODE
+
+int main(int argv, char* argc[])
 {
     // the second argument is the path to the game
     // the program won't start without a path or too much paths
     if(argv == 2)
-    {
-        Chip8 myChip(argc[1]);
+    {   
+        Window window("Chip8 Emulator", 640, 480);
+        Chip8 chip(argc[1], window);
+
+        while(window.run())
+        {
+            chip.cycle();
+        }
+
         return EXIT_SUCCESS;
-    } 
-    else 
-    {
-        std::cout << "Please specify the correct file path!" << std::endl;
     }
+    else
+    {
+        std::cerr << "Please specify a correct path!\n";
+    }
+    
 
     return EXIT_FAILURE;
 }

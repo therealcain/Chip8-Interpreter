@@ -1,113 +1,137 @@
 #ifndef CHIP8_HPP
 #define CHIP8_HPP
 
-#include <string>
-#include <vector>
-#include <memory>
 #include <array>
+#include <functional>
+#include <map>
 
-#define PRINT_DIRECTIVE(x) puts(#x);
+#include "cpu.hpp"
+#include "window.hpp"
 
-// the C++ way of defines
-namespace C // shortcut of Constants
+constexpr auto MEMORY_SIZE   = 0xFFF;
+constexpr auto STACK_SIZE    = 16;
+constexpr auto REGISTER_SIZE = 16;
+constexpr auto KEYPADS_SIZE  = 16;
+constexpr auto CHIP8_WIDTH   = 64;
+constexpr auto CHIP8_HEIGHT  = 32;
+
+class Chip8 : private CPU<STACK_SIZE,
+                          MEMORY_SIZE,
+                          REGISTER_SIZE,
+                          KEYPADS_SIZE,
+                          CHIP8_WIDTH,
+                          CHIP8_HEIGHT> 
 {
-    constexpr auto RESOLUTION_WIDTH  = 64;
-    constexpr auto RESOLUTION_HEIGHT = 32;
-
-    constexpr auto START_LOCATION     = 0x200;
-    constexpr auto MAXIMUM_BYTES      = 0xFFF;
-    constexpr auto INSTRUCTION_BYTES  = 2; 
-    constexpr auto TIMER_HERTZ        = 60;
-
-    // OPCODES - There are 16 different first four bits
-    constexpr auto /*      */ ZERO_OPCODE       = 0x0000;
-    constexpr auto /* 1NNN */ ONE_OPCODE        = 0x1000; // Jumps to address NNN. 
-    constexpr auto /* 2NNN */ TWO_OPCODE        = 0x2000; // Calls subroutine at NNN. 
-    constexpr auto /* 3XNN */ THREE_OPCODE      = 0x3000; // Skips the next instruction if VX equals NN.
-    constexpr auto /* 4XNN */ FOUR_OPCODE       = 0x4000; // Skips the next instruction if VX doesn't equal NN.
-    constexpr auto /* 5XY0 */ FIVE_OPCODE       = 0x5000; // Skips the next instruction if VX equals VY. 
-    constexpr auto /* 6XNN */ SIX_OPCODE        = 0x6000; // Sets VX to NN. 
-    constexpr auto /* 7XNN */ SEVEN_OPCODE      = 0x7000; // Adds NN to VX.
-    constexpr auto /*      */ EIGHT_OPCODE      = 0x8000;
-    constexpr auto /* 9XY0 */ NINE_OPCODE       = 0x9000; // Skips the next instruction if VX doesn't equal VY. 
-    constexpr auto /* ANNN */ TEN_OPCODE        = 0xA000; // Sets I to the address NNN. 
-    constexpr auto /* BNNN */ ELEVEN_OPCODE     = 0xB000; // Jumps to the address NNN plus V0. 
-    constexpr auto /* CXNN */ TWELVE_OPCODE     = 0xC000; // Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN. 
-    constexpr auto /* DXYN */ THIRTEEN_OPCODE   = 0xD000; // Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels. 
-                                                          // Each row of 8 pixels is read as bit-coded starting from memory location I; 
-                                                          // I value doesn’t change after the execution of this instruction. 
-                                                          // As described above, VF is set to 1 if any screen pixels are flipped from set to unset when 
-                                                          // the sprite is drawn, and to 0 if that doesn’t happen
-    constexpr auto /*      */ FOURTEEN_OPCODE   = 0xE000;
-    constexpr auto /*      */ FIFTEEN_OPCODE    = 0xF000;
-
-    // ZERO OPCODES:
-    constexpr auto OPCODE_00E0 = 0x0000; // Clear the display.
-    constexpr auto OPCODE_00EE = 0x000E; // Return from a subroutine.
-
-    // EIGHT OPCODES:
-    constexpr auto OPCODE_8XY0 = 0x0000; // Sets VX to the value of VY. 
-    constexpr auto OPCODE_8XY1 = 0x0001; // Sets VX to VX or VY. (Bitwise OR operation) 
-    constexpr auto OPCODE_8XY2 = 0x0002; // Sets VX to VX and VY. (Bitwise AND operation) 
-    constexpr auto OPCODE_8XY3 = 0x0003; // Sets VX to VX xor VY. 
-    constexpr auto OPCODE_8XY4 = 0x0004; // Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't. 
-    constexpr auto OPCODE_8XY5 = 0x0005; // VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't. 
-    constexpr auto OPCODE_8XY6 = 0x0006; // Stores the least significant bit of VX in VF and then shifts VX to the right by 1.
-    constexpr auto OPCODE_8XY7 = 0x0007; // Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't. 
-    constexpr auto OPCODE_8XYE = 0x000E; // Stores the most significant bit of VX in VF and then shifts VX to the left by 1.
-
-    // FOURTEEN OPCODES:
-    constexpr auto OPCODE_EX9E = 0x000E; // Skips the next instruction if the key stored in VX is pressed.
-    constexpr auto OPCODE_EXA1 = 0x0001; // Skips the next instruction if the key stored in VX isn't pressed.
-
-    // FIFTEEN OPCODES:
-    constexpr auto OPCODE_FX07 = 0x0007; // Sets VX to the value of the delay timer. 
-    constexpr auto OPCODE_FX0A = 0x000A; // A key press is awaited, and then stored in VX. 
-    constexpr auto OPCODE_FX15 = 0x0015; // Sets the delay timer to VX. 
-    constexpr auto OPCODE_FX18 = 0x0018; // Sets the sound timer to VX. 
-    constexpr auto OPCODE_FX1E = 0x001E; // Adds VX to I. VF is set to 1 when there is a range overflow (I+VX>0xFFF), and to 0 when there isn't.
-    constexpr auto OPCODE_FX29 = 0x0029; // Sets I to the location of the sprite for the character in VX. Characters 0-F (in hexadecimal) 
-                                         // are represented by a 4x5 font. 
-    constexpr auto OPCODE_FX33 = 0x0033; // Stores the binary-coded decimal representation of VX, with the most significant of three digits at the address in I,
-                                         // the middle digit at I plus 1, and the least significant digit at I plus 2. 
-    constexpr auto OPCODE_FX55 = 0x0055; // Stores V0 to VX (including VX) in memory starting at address I. 
-                                         // The offset from I is increased by 1 for each value written, but I itself is left unmodified.
-    constexpr auto OPCODE_FX65 = 0x0065; // Fills V0 to VX (including VX) with values from memory starting at address I. 
-                                         // The offset from I is increased by 1 for each value written, but I itself is left unmodified.
-
-    constexpr char const* MEMORY_OPCODE_ERROR_MSG = "Memory OPCODE is wrong!";
-}
-
-class Chip8
-{
-private:
-    [[maybe_unused]] std::string cast_hex(const std::vector<uint8_t>& vec) const noexcept;
-    
-    void loading_buffer_to_memory(const std::vector<uint8_t>& buffer) noexcept;
-    void load_fontset() noexcept;
-
-    void disassemble_loop() noexcept;
-    void disassemble_pc() noexcept;
-
-    void fetch_opcode() noexcept;
-    
 public:
-    Chip8(const std::string& path);
+    Chip8(const std::string& file_path, Window& window);
     ~Chip8() = default;
 
+    void cycle() noexcept;
+
 private:
-    std::vector<uint8_t> memory;
-    std::array<uint8_t, 16> registers; // VO
-    std::array<uint16_t, 24> stack;
+    #if ENABLE_DEBUG_MODE
+    std::string get_memory_as_string(size_t min, size_t max) const noexcept;
+    void clear_terminal() const noexcept;
+    #endif // ENABLE_DEBUG_MODE
 
-    uint16_t program_counter = C::START_LOCATION; // PC
-    uint16_t* p_stack        = nullptr;           // SP
+    void copy_fonts_to_memory() noexcept;
+    void fetch_opcode() noexcept;
+    void fetch_instruction_variables() noexcept;
+    uint8_t random_byte() const noexcept;
+
+    // Opcode implemenations
+    void OPCODE_0NNN_Impl();
+    void OPCODE_00E0_Impl();
+    void OPCODE_00EE_Impl();
+    void OPCODE_1NNN_Impl();
+    void OPCODE_2NNN_Impl();
+    void OPCODE_3XKK_Impl();
+    void OPCODE_4XKK_Impl();
+    void OPCODE_5XY0_Impl();
+    void OPCODE_6XKK_Impl();
+    void OPCODE_7XKK_Impl();
+    void OPCODE_8XY0_Impl();
+    void OPCODE_8XY1_Impl();
+    void OPCODE_8XY2_Impl();
+    void OPCODE_8XY3_Impl();
+    void OPCODE_8XY4_Impl();
+    void OPCODE_8XY5_Impl();
+    void OPCODE_8XY6_Impl();
+    void OPCODE_8XY7_Impl();
+    void OPCODE_8XYE_Impl();
+    void OPCODE_9XY0_Impl();
+    void OPCODE_ANNN_Impl();
+    void OPCODE_BNNN_Impl();
+    void OPCODE_CXKK_Impl();
+    void OPCODE_DXYN_Impl();
+    void OPCODE_EX9E_Impl();
+    void OPCODE_EXA1_Impl();
+    void OPCODE_FX07_Impl();
+    void OPCODE_FX0A_Impl();
+    void OPCODE_FX15_Impl();
+    void OPCODE_FX18_Impl();
+    void OPCODE_FX1E_Impl();
+    void OPCODE_FX29_Impl();
+    void OPCODE_FX33_Impl();
+    void OPCODE_FX55_Impl();
+    void OPCODE_FX65_Impl();
+
+private:
+    Window& window_ref;
+    std::map<int                   /*opcode*/, 
+             std::function<void()> /*opcode impl*/> opcode_table;
+
+    // Contains all of the values of the instruction variables 
+    // of the current opcode
+    struct Instruction_variables
+    {
+        uint16_t nnn;
+        uint8_t n;
+        uint8_t x;
+        uint8_t y;
+        uint8_t kk;
+    }; Instruction_variables inst_var;
+
+// Constants
+private:
+    static constexpr auto LOCATION_START   = 0x200;
+    static constexpr auto INSTRUCTION_LONG = 2;
     
-    uint16_t index; // I
-    uint16_t opcode;
-
-    uint16_t delay_timer = C::TIMER_HERTZ;
-    uint16_t sound_timer = C::TIMER_HERTZ;
+    static constexpr auto OPCODE_0NNN = 0x0000; // Jump to a machine code routine at nnn
+    static constexpr auto OPCODE_00E0 = 0x00E0; // Clear the display
+    static constexpr auto OPCODE_00EE = 0x00EE; // Return from a subroutine
+    static constexpr auto OPCODE_1NNN = 0x1000; // Jump to location nnn
+    static constexpr auto OPCODE_2NNN = 0x2000; // Call subroutine at nnn
+    static constexpr auto OPCODE_3XKK = 0x3000; // Skip next instruction if Vx = kk
+    static constexpr auto OPCODE_4XKK = 0x4000; // Skip next instruction if Vx != kk
+    static constexpr auto OPCODE_5XY0 = 0x5000; // Skip next instruction if Vx = Vy
+    static constexpr auto OPCODE_6XKK = 0x6000; // Set Vx = kk
+    static constexpr auto OPCODE_7XKK = 0x7000; // Set Vx = Vx + kk
+    static constexpr auto OPCODE_8XY0 = 0x8000; // Set Vx = Vy
+    static constexpr auto OPCODE_8XY1 = 0x8001; // Set Vx = Vx OR Vy
+    static constexpr auto OPCODE_8XY2 = 0x8002; // Set Vx = Vx AND Vy
+    static constexpr auto OPCODE_8XY3 = 0x8003; // Set Vx = Vx XOR Vy
+    static constexpr auto OPCODE_8XY4 = 0x8004; // Set Vx = Vx + Vy, set VF = carry
+    static constexpr auto OPCODE_8XY5 = 0x8005; // Set Vx = Vx - Vy, set VF = NOT borrow
+    static constexpr auto OPCODE_8XY6 = 0x8006; // Set Vx = Vx SHR 1
+    static constexpr auto OPCODE_8XY7 = 0x8007; // Set Vx = Vy - Vx, set VF = NOT borrow
+    static constexpr auto OPCODE_8XYE = 0x800E; // Set Vx = Vx SHL 1
+    static constexpr auto OPCODE_9XY0 = 0x9000; // Skip next instruction if Vx != Vy
+    static constexpr auto OPCODE_ANNN = 0xA000; // Set I = nnn
+    static constexpr auto OPCODE_BNNN = 0xB000; // Jump to location nnn + V0
+    static constexpr auto OPCODE_CXKK = 0xC000; // Set Vx = random byte AND kk
+    static constexpr auto OPCODE_DXYN = 0xD000; // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision
+    static constexpr auto OPCODE_EX9E = 0xE09E; // Skip next instruction if key with the value of Vx is pressed
+    static constexpr auto OPCODE_EXA1 = 0xE0A1; // Skip next instruction if key with the value of Vx is not pressed
+    static constexpr auto OPCODE_FX07 = 0xF007; // Set Vx = delay timer value
+    static constexpr auto OPCODE_FX0A = 0xF00A; // Wait for a key press, store the value of the key in Vx
+    static constexpr auto OPCODE_FX15 = 0xF015; // Set delay timer = Vx
+    static constexpr auto OPCODE_FX18 = 0xF018; // Set sound timer = Vx
+    static constexpr auto OPCODE_FX1E = 0xF01E; // Set I = I + Vx
+    static constexpr auto OPCODE_FX29 = 0xF029; // Set I = location of sprite for digit Vx
+    static constexpr auto OPCODE_FX33 = 0xF033; // Store BCD representation of Vx in memory locations I, I+1, and I+2
+    static constexpr auto OPCODE_FX55 = 0xF055; // Store registers V0 through Vx in memory starting at location I
+    static constexpr auto OPCODE_FX65 = 0xF065; // Read registers V0 through Vx from memory starting at location I
 };
 
-#endif
+#endif // CHIP8_HPP
