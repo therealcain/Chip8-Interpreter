@@ -37,10 +37,12 @@ private:
     void copy_fonts_to_memory() noexcept;
     void fetch_opcode() noexcept;
     void fetch_instruction_variables() noexcept;
+    void call_opcodes() noexcept;
     uint8_t random_byte() const noexcept;
+    void render() noexcept;
 
     // Opcode implemenations
-    void OPCODE_0NNN_Impl();
+    // void OPCODE_0NNN_Impl();
     void OPCODE_00E0_Impl();
     void OPCODE_00EE_Impl();
     void OPCODE_1NNN_Impl();
@@ -77,8 +79,10 @@ private:
     void OPCODE_FX65_Impl();
 
 private:
+    // Rendering
     Window& window_ref;
-    std::map<int                   /*opcode*/, 
+
+    std::map<uint16_t              /*opcode*/, 
              std::function<void()> /*opcode impl*/> opcode_table;
 
     // Contains all of the values of the instruction variables 
@@ -96,10 +100,11 @@ private:
 private:
     static constexpr auto LOCATION_START   = 0x200;
     static constexpr auto INSTRUCTION_LONG = 2;
+    static constexpr auto LOCATION_FONT    = 0x50;
     
-    static constexpr auto OPCODE_0NNN = 0x0000; // Jump to a machine code routine at nnn
-    static constexpr auto OPCODE_00E0 = 0x00E0; // Clear the display
-    static constexpr auto OPCODE_00EE = 0x00EE; // Return from a subroutine
+    // static constexpr auto OPCODE_0NNN = 0x0000; // Jump to a machine code routine at nnn
+    static constexpr auto OPCODE_00E0 = 0x0000; // Clear the display
+    static constexpr auto OPCODE_00EE = 0x000E; // Return from a subroutine
     static constexpr auto OPCODE_1NNN = 0x1000; // Jump to location nnn
     static constexpr auto OPCODE_2NNN = 0x2000; // Call subroutine at nnn
     static constexpr auto OPCODE_3XKK = 0x3000; // Skip next instruction if Vx = kk
@@ -121,8 +126,8 @@ private:
     static constexpr auto OPCODE_BNNN = 0xB000; // Jump to location nnn + V0
     static constexpr auto OPCODE_CXKK = 0xC000; // Set Vx = random byte AND kk
     static constexpr auto OPCODE_DXYN = 0xD000; // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision
-    static constexpr auto OPCODE_EX9E = 0xE09E; // Skip next instruction if key with the value of Vx is pressed
-    static constexpr auto OPCODE_EXA1 = 0xE0A1; // Skip next instruction if key with the value of Vx is not pressed
+    static constexpr auto OPCODE_EX9E = 0xE00E; // Skip next instruction if key with the value of Vx is pressed
+    static constexpr auto OPCODE_EXA1 = 0xE001; // Skip next instruction if key with the value of Vx is not pressed
     static constexpr auto OPCODE_FX07 = 0xF007; // Set Vx = delay timer value
     static constexpr auto OPCODE_FX0A = 0xF00A; // Wait for a key press, store the value of the key in Vx
     static constexpr auto OPCODE_FX15 = 0xF015; // Set delay timer = Vx

@@ -12,11 +12,11 @@ template<size_t STACK,
          size_t HEIGHT>
 struct CPU
 {
-    std::array<uint16_t, STACK>                     stack     { 0 };
-    std::array< std::array<uint16_t, WIDTH>, HEIGHT> display   { 0 };
-    std::array<uint8_t,  MEMORY>                    memory    { 0 };
-    std::array<uint8_t,  REGISTER>                  registers { 0 };
-    std::array<uint8_t,  KEYS>                      keypads   { 0 };
+    std::array<uint32_t, WIDTH * HEIGHT>   display   {};
+    std::array<uint16_t, STACK>            stack     {};
+    std::array<uint8_t,  MEMORY>           memory    {};
+    std::array<uint8_t,  REGISTER>         registers {};
+    std::array<uint8_t,  KEYS>             keypads   {};
 
     uint16_t pc;     // used to store the currently executing address
     uint16_t I;      // this register is generally used to store memory addresses

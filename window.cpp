@@ -4,6 +4,7 @@
 #include <iostream>
 
 Window::Window(const std::string& str, int width, int height)
+    : m_width(width), m_height(height)
 {
     // Initialize SDL
     if(SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -20,7 +21,6 @@ Window::Window(const std::string& str, int width, int height)
         throw std::runtime_error(err);
     }
     
-    // Create the renderer
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 }
 
@@ -38,21 +38,12 @@ bool Window::run() noexcept
     return true;
 }
 
-void Window::clear() noexcept
-{
-    // clear the pipeline
-    SDL_RenderClear(renderer);
-}
-
-void Window::render() noexcept
-{
-    // render chip8
-    SDL_RenderPresent(renderer);
-}
-
 Window::~Window()
 {
     // free all SDL memory
+    SDL_DestroyTexture(texture);
+    texture = nullptr;
+
     SDL_DestroyRenderer(renderer);
     renderer = nullptr;
 

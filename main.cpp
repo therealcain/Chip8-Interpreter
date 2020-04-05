@@ -12,13 +12,15 @@
     #endif // not linux && windows
 #endif // ENABLE_DEBUG_MODE
 
+constexpr auto WINDOW_SIZE = 15;
+
 int main(int argv, char* argc[])
 {
     // the second argument is the path to the game
     // the program won't start without a path or too much paths
     if(argv == 2)
     {   
-        Window window("Chip8 Emulator", 640, 480);
+        Window window("Chip8 Emulator", WINDOW_SIZE * CHIP8_WIDTH, WINDOW_SIZE * CHIP8_HEIGHT);
         Chip8 chip(argc[1], window);
 
         while(window.run())

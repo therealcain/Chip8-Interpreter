@@ -13,13 +13,14 @@ public:
     ~Window();
 
     bool run() noexcept;
-    void clear() noexcept;
-    void render() noexcept;
 
 private:
-    SDL_Window*   window   = nullptr;
-    SDL_Renderer* renderer = nullptr;
-    SDL_Texture*  texture  = nullptr;
+    SDL_Window*    window   = nullptr;
+    SDL_Renderer*  renderer = nullptr;
+    SDL_Texture*   texture  = nullptr;
+
+    int m_width;
+    int m_height;
 
     // let chip8 access all of window members
     friend class Chip8;

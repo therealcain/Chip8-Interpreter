@@ -29,14 +29,14 @@ Chip8::Chip8(const std::string& file_path, Window& window)
    
         copy_fonts_to_memory();
 
-        window_ref.texture = SDL_CreateTexture(window_ref.renderer, SDL_PIXELFORMAT_ARGB8888, 
-                                               SDL_TEXTUREACCESS_STREAMING, CHIP8_WIDTH, CHIP8_HEIGHT);
+        // Configuring texture
+        window_ref.texture = SDL_CreateTexture(window_ref.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, CHIP8_WIDTH, CHIP8_HEIGHT);
 
         // Starting position of CPU
         pc = LOCATION_START;
 
         // setting up the opcode table
-        opcode_table[OPCODE_0NNN] = [this](){ OPCODE_0NNN_Impl(); };
+        // opcode_table[OPCODE_0NNN] = [this](){ OPCODE_0NNN_Impl(); };
         opcode_table[OPCODE_00E0] = [this](){ OPCODE_00E0_Impl(); };
         opcode_table[OPCODE_00EE] = [this](){ OPCODE_00EE_Impl(); };
         opcode_table[OPCODE_1NNN] = [this](){ OPCODE_1NNN_Impl(); };
@@ -100,7 +100,7 @@ void Chip8::copy_fonts_to_memory() noexcept
     };
 
     // copy all fontset to memory
-    std::copy(fontset.begin(), fontset.end(), memory.begin());
+    std::copy(fontset.begin(), fontset.end(), memory.begin() + LOCATION_FONT);
 }
 
 #if ENABLE_DEBUG_MODE
@@ -141,7 +141,7 @@ void Chip8::fetch_opcode() noexcept
     // shifting to left the memory[pc] by 8 bits
     // and then assign the next memory by using bitwise OR operation
     // example: a2 bc turns to 0xA2BC
-    opcode = memory[pc] << 8 | memory[pc + 1];
+    opcode = (memory[pc] << 8) | memory[pc + 1];
 }
 
 void Chip8::fetch_instruction_variables() noexcept
@@ -169,58 +169,89 @@ uint8_t Chip8::random_byte() const noexcept
 
 void Chip8::cycle() noexcept
 {
-    // priting out all of the memory
+    // printing out all of the memory
     #if ENABLE_DEBUG_MODE
     clear_terminal();
     std::cout << std::hex << get_memory_as_string(LOCATION_START, 1000) << std::endl;
     #endif // ENABLE_DEBUG_MODE
-    
-    fetch_opcode();
-
-    // Mask to remove the least important bit in the first nibble
-    const auto masked_opcode =  opcode & 0xF0FF;
-    if(opcode_table.count(masked_opcode) >= 1)
-    {
-        fetch_instruction_variables();
-        opcode_table[masked_opcode]();
-    }
-
-    // Display graphics
-    std::array<uint16_t, CHIP8_WIDTH * CHIP8_HEIGHT> display_buffer;
-    for(size_t y = 0; y < display.size(); y++)
-    {
-        for(size_t x = 0; x < display[y].size(); x++)
-        {
-            display_buffer[y + x] = display[y][x];
-        }
-    }
-
-    // Display the pixels
-    SDL_UpdateTexture(window_ref.texture, nullptr, display_buffer.data(), CHIP8_WIDTH * sizeof(uint16_t));
-    window_ref.clear();
-    SDL_RenderCopy(window_ref.renderer, window_ref.texture, nullptr, nullptr);
-    window_ref.render();
 
     // All instructions are 2 bytes long.
     pc += INSTRUCTION_LONG;
+
+    fetch_opcode();
+    fetch_instruction_variables();
+    call_opcodes();
+    render();
+
+    // decrease delay timer
+    if(dt > 0)
+    {
+        dt--;
+    }
+}
+
+void Chip8::call_opcodes() noexcept
+{
+    switch(opcode & 0xF000)
+    {
+        case 0x1000: case 0x2000: case 0x3000: case 0x4000:
+        case 0x5000: case 0x6000: case 0x7000: case 0x9000:
+        case 0xA000: case 0xB000: case 0xC000: case 0xD000:
+        {
+            const uint16_t masked_opcode = opcode & 0xF000;
+            if(opcode_table.find(masked_opcode) != opcode_table.end())
+            {
+                opcode_table[masked_opcode]();
+            }
+        }
+        break;
+
+        case 0xF000:
+        {
+            const uint16_t masked_opcode = opcode & 0xF0FF;
+            if(opcode_table.find(masked_opcode) != opcode_table.end())
+            {
+                opcode_table[masked_opcode]();
+            }
+        }
+        break;
+
+        default:
+        {
+            const uint16_t masked_opcode = opcode & 0xF00F;
+            if(opcode_table.find(masked_opcode) != opcode_table.end())
+            {
+                opcode_table[masked_opcode]();
+            }
+        }
+        break;
+    }
+}
+
+void Chip8::render() noexcept
+{
+    SDL_UpdateTexture(window_ref.texture, nullptr, display.data(), sizeof(decltype(display[0])) * CHIP8_WIDTH);
+    SDL_RenderClear(window_ref.renderer);
+    SDL_RenderCopy(window_ref.renderer, window_ref.texture, nullptr, nullptr);
+    SDL_RenderPresent(window_ref.renderer);
 }
 
 // This is not implemented because i'm not trying to 
 // emulate the RCA 1802 CPU
 // This instruction is only used on the old computers on which Chip-8 was originally implemented. It is ignored by modern interpreters.
-void Chip8::OPCODE_0NNN_Impl() {}
+// void Chip8::OPCODE_0NNN_Impl() {}
 
 // Clear the display.
 void Chip8::OPCODE_00E0_Impl()
 {
-    std::fill(&display[0][0], &display[0][0] + sizeof(display), 0);
+    std::fill(display.begin(), display.end(), 0);
 }
 
 // The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.
 void Chip8::OPCODE_00EE_Impl()
 {
-    pc = stack.back();
     sp--;
+    pc = stack[sp];
 }
 
 // The interpreter sets the program counter to nnn.
@@ -232,30 +263,36 @@ void Chip8::OPCODE_1NNN_Impl()
 // The interpreter increments the stack pointer, then puts the current PC on the top of the stack. The PC is then set to nnn.
 void Chip8::OPCODE_2NNN_Impl()
 {
+    stack[sp] = pc;
     sp++;
-    stack[STACK_SIZE - 1] = pc;
     pc = inst_var.nnn;
 }
 
 // The interpreter compares register Vx to kk, and if they are equal, increments the program counter by 2.
 void Chip8::OPCODE_3XKK_Impl()
 {
-    pc = registers[inst_var.x] == inst_var.kk 
-        ? pc + INSTRUCTION_LONG : pc;
+    if(registers[inst_var.x] == inst_var.kk)
+    {
+        pc += INSTRUCTION_LONG;
+    }
 }
 
 // The interpreter compares register Vx to kk, and if they are not equal, increments the program counter by 2.
 void Chip8::OPCODE_4XKK_Impl()
 {
-    pc = registers[inst_var.x] != inst_var.kk 
-        ? pc + INSTRUCTION_LONG : pc;
+    if(registers[inst_var.x] != inst_var.kk)
+    {
+        pc += INSTRUCTION_LONG;
+    }
 }
 
 // The interpreter compares register Vx to register Vy, and if they are equal, increments the program counter by 2.
 void Chip8::OPCODE_5XY0_Impl()
 {
-    pc = registers[inst_var.x] == registers[inst_var.y] 
-        ? pc + INSTRUCTION_LONG : pc;
+    if(registers[inst_var.x] == registers[inst_var.y] )
+    {
+        pc += INSTRUCTION_LONG;
+    }
 }
 
 // The interpreter puts the value kk into register Vx.
@@ -305,6 +342,8 @@ void Chip8::OPCODE_8XY4_Impl()
     // checking a carry when sum bigger than a byte
     registers[REGISTER_SIZE - 1] = sum > 255 
         ? 1 : 0; 
+
+    registers[inst_var.x] = sum & 0xFF;
 }
 
 // If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
@@ -320,7 +359,7 @@ void Chip8::OPCODE_8XY5_Impl()
 void Chip8::OPCODE_8XY6_Impl()
 {
     registers[REGISTER_SIZE - 1] = registers[inst_var.x] & 0x1;
-    registers[inst_var.x] /= 2;
+    registers[inst_var.x] >>= 1;
 }
 
 // If Vy > Vx, then VF is set to 1, otherwise 0. Then Vx is subtracted from Vy, and the results stored in Vx.
@@ -336,14 +375,16 @@ void Chip8::OPCODE_8XY7_Impl()
 void Chip8::OPCODE_8XYE_Impl()
 {
     registers[REGISTER_SIZE - 1] = (registers[inst_var.x] & 0x80) >> 7;
-    registers[inst_var.x] *= 2;
+    registers[inst_var.x] <<= 1;
 }
 
 // The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
 void Chip8::OPCODE_9XY0_Impl()
 {
-    pc = registers[inst_var.x] != registers[inst_var.y] 
-        ? pc + 2 : pc;
+    if(registers[inst_var.x] != registers[inst_var.y])
+    {
+        pc += INSTRUCTION_LONG;
+    }
 }
 
 // The value of register I is set to nnn.
@@ -372,33 +413,50 @@ void Chip8::OPCODE_DXYN_Impl()
 {
     registers[REGISTER_SIZE - 1] = 0;
 
-    uint16_t pixel;
-    for(int y = 0; y < inst_var.n; y++)
-    {
-        pixel = memory[I + y];
+    uint8_t x_pos = registers[inst_var.x] % CHIP8_WIDTH;
+	uint8_t y_pos = registers[inst_var.x] % CHIP8_HEIGHT;
 
-        for(int x = 0; x < 8; x++)
-        {
-            registers[REGISTER_SIZE - 1] = display[inst_var.x + x][inst_var.y + y] == 1 
-                ? 1 : registers[REGISTER_SIZE - 1];
+    for (unsigned int row = 0; row < inst_var.n; ++row)
+	{
+		uint8_t spriteByte = memory[I + row];
 
-            display[inst_var.x + x][inst_var.y + y] ^= 1;
-        }
-    }
+		for (unsigned int col = 0; col < 8; ++col)
+		{
+			uint8_t spritePixel = spriteByte & (0x80 >> col);
+			uint32_t* screenPixel = &display[(y_pos + row) * CHIP8_WIDTH + (x_pos + col)];
+
+			// Sprite pixel is on
+			if (spritePixel)
+			{
+				// Screen pixel also on - collision
+				if (*screenPixel == 0xFFFFFFFF)
+				{
+					registers[0xF] = 1;
+				}
+
+				// Effectively XOR with the sprite pixel
+				*screenPixel ^= 0xFFFFFFFF;
+			}
+		}
+	}
 }
 
 // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
 void Chip8::OPCODE_EX9E_Impl()
 {
-    pc = keypads[registers[inst_var.x]] != 0 
-        ? pc + INSTRUCTION_LONG : pc;
+    if(keypads[registers[inst_var.x]])
+    {
+        pc += INSTRUCTION_LONG;
+    }
 }
 
 // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
 void Chip8::OPCODE_EXA1_Impl()
 {
-    pc = keypads[registers[inst_var.x]] == 0 
-        ? pc + INSTRUCTION_LONG : pc;
+    if(not keypads[registers[inst_var.x]])
+    {
+        pc += INSTRUCTION_LONG;
+    }
 }
 
 // The value of DT is placed into Vx.
@@ -410,12 +468,19 @@ void Chip8::OPCODE_FX07_Impl()
 // All execution stops until a key is pressed, then the value of that key is stored in Vx.
 void Chip8::OPCODE_FX0A_Impl()
 {
+    bool key_pressed = false;
     for(int i = 0; i < KEYPADS_SIZE; i++)
     {
-        if(keypads[i] != 0)
+        if(keypads[i])
         {
             registers[inst_var.x] = keypads[i];
+            key_pressed == true;
         }
+    }
+
+    if(not key_pressed)
+    {
+        pc -= INSTRUCTION_LONG;
     }
 }
 
@@ -432,13 +497,13 @@ void Chip8::OPCODE_FX18_Impl() {}
 // The values of I and Vx are added, and the results are stored in I.
 void Chip8::OPCODE_FX1E_Impl()
 {
-    I += registers[REGISTER_SIZE - 1];
+    I += registers[inst_var.x];
 }
 
 // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx.
 void Chip8::OPCODE_FX29_Impl()
 {
-    I = registers[inst_var.x] * 5;
+    I = LOCATION_FONT + (5 * registers[inst_var.x]);
 }   
 
 // The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
