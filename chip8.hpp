@@ -39,6 +39,7 @@ private:
     void fetch_instruction_variables() noexcept;
     void call_opcodes() noexcept;
     uint8_t random_byte() const noexcept;
+    void key_handling() noexcept;
     void render() noexcept;
 
     // Opcode implemenations
@@ -100,7 +101,6 @@ private:
 private:
     static constexpr auto LOCATION_START   = 0x200;
     static constexpr auto INSTRUCTION_LONG = 2;
-    static constexpr auto LOCATION_FONT    = 0x50;
     
     // static constexpr auto OPCODE_0NNN = 0x0000; // Jump to a machine code routine at nnn
     static constexpr auto OPCODE_00E0 = 0x0000; // Clear the display

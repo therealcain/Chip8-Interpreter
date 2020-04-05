@@ -100,7 +100,7 @@ void Chip8::copy_fonts_to_memory() noexcept
     };
 
     // copy all fontset to memory
-    std::copy(fontset.begin(), fontset.end(), memory.begin() + LOCATION_FONT);
+    std::copy(fontset.begin(), fontset.end(), memory.begin());
 }
 
 #if ENABLE_DEBUG_MODE
@@ -167,6 +167,42 @@ uint8_t Chip8::random_byte() const noexcept
     return distr(eng);
 }
 
+void Chip8::key_handling() noexcept
+{
+    static constexpr std::initializer_list<SDL_Keycode> KEYS = {
+        SDLK_x, SDLK_1, SDLK_2, SDLK_3,
+        SDLK_q, SDLK_w, SDLK_e, SDLK_a,
+        SDLK_s, SDLK_d, SDLK_z, SDLK_c,
+        SDLK_4, SDLK_r, SDLK_f, SDLK_v
+    };
+
+    while(SDL_PollEvent(&window_ref.event))
+    {
+        switch(window_ref.event.type)
+        {
+            case SDL_KEYDOWN:
+            for(auto key : KEYS)
+            {
+                if(window_ref.event.key.keysym.sym == key)
+                {
+                    keypads[key] = 1;
+                }
+            }
+            break;
+
+            case SDL_KEYUP:
+            for(auto key : KEYS)
+            {
+                if(window_ref.event.key.keysym.sym == key)
+                {
+                    keypads[key] = 0;
+                }
+            }
+            break;
+        }
+    }
+}
+
 void Chip8::cycle() noexcept
 {
     // printing out all of the memory
@@ -183,6 +219,8 @@ void Chip8::cycle() noexcept
     call_opcodes();
     render();
 
+    key_handling();
+
     // decrease delay timer
     if(dt > 0)
     {
@@ -192,6 +230,7 @@ void Chip8::cycle() noexcept
 
 void Chip8::call_opcodes() noexcept
 {
+    // get the first nibble and check what type the opcode is
     switch(opcode & 0xF000)
     {
         case 0x1000: case 0x2000: case 0x3000: case 0x4000:
@@ -199,6 +238,8 @@ void Chip8::call_opcodes() noexcept
         case 0xA000: case 0xB000: case 0xC000: case 0xD000:
         {
             const uint16_t masked_opcode = opcode & 0xF000;
+
+            // just to make sure memory will not go out of bounds
             if(opcode_table.find(masked_opcode) != opcode_table.end())
             {
                 opcode_table[masked_opcode]();
@@ -209,6 +250,8 @@ void Chip8::call_opcodes() noexcept
         case 0xF000:
         {
             const uint16_t masked_opcode = opcode & 0xF0FF;
+
+            // just to make sure memory will not go out of bounds
             if(opcode_table.find(masked_opcode) != opcode_table.end())
             {
                 opcode_table[masked_opcode]();
@@ -219,6 +262,8 @@ void Chip8::call_opcodes() noexcept
         default:
         {
             const uint16_t masked_opcode = opcode & 0xF00F;
+
+            // just to make sure memory will not go out of bounds
             if(opcode_table.find(masked_opcode) != opcode_table.end())
             {
                 opcode_table[masked_opcode]();
@@ -411,31 +456,29 @@ void Chip8::OPCODE_CXKK_Impl()
 // If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen.
 void Chip8::OPCODE_DXYN_Impl()
 {
+    constexpr auto VIDEO_PIXEL = 0xFFFFFFFF;
     registers[REGISTER_SIZE - 1] = 0;
 
-    uint8_t x_pos = registers[inst_var.x] % CHIP8_WIDTH;
-	uint8_t y_pos = registers[inst_var.x] % CHIP8_HEIGHT;
+    uint8_t x = registers[inst_var.x];
+	uint8_t y = registers[inst_var.y];
 
-    for (unsigned int row = 0; row < inst_var.n; ++row)
+    for (unsigned int row = 0; row < inst_var.n; row++)
 	{
-		uint8_t spriteByte = memory[I + row];
+		uint8_t sprite = memory[I + row];
 
-		for (unsigned int col = 0; col < 8; ++col)
+		for (unsigned int col = 0; col < 8; col++)
 		{
-			uint8_t spritePixel = spriteByte & (0x80 >> col);
-			uint32_t* screenPixel = &display[(y_pos + row) * CHIP8_WIDTH + (x_pos + col)];
+			uint8_t pixel = sprite & (0x80 >> col);
+            uint32_t array_index = (y + row) * CHIP8_WIDTH + (x + col);
 
-			// Sprite pixel is on
-			if (spritePixel)
+			if (pixel != 0)
 			{
-				// Screen pixel also on - collision
-				if (*screenPixel == 0xFFFFFFFF)
+				if (display[array_index] == VIDEO_PIXEL)
 				{
 					registers[0xF] = 1;
 				}
 
-				// Effectively XOR with the sprite pixel
-				*screenPixel ^= 0xFFFFFFFF;
+				display[array_index] ^= VIDEO_PIXEL;
 			}
 		}
 	}
@@ -503,7 +546,7 @@ void Chip8::OPCODE_FX1E_Impl()
 // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx.
 void Chip8::OPCODE_FX29_Impl()
 {
-    I = LOCATION_FONT + (5 * registers[inst_var.x]);
+    I = 5 * registers[inst_var.x];
 }   
 
 // The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.

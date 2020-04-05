@@ -18,6 +18,7 @@ private:
     SDL_Window*    window   = nullptr;
     SDL_Renderer*  renderer = nullptr;
     SDL_Texture*   texture  = nullptr;
+    SDL_Event      event;
 
     int m_width;
     int m_height;

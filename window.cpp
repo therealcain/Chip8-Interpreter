@@ -26,7 +26,6 @@ Window::Window(const std::string& str, int width, int height)
 
 bool Window::run() noexcept
 {
-    SDL_Event event;
     while(SDL_PollEvent(&event) != 0)
     {
         if(event.type == SDL_QUIT) 
