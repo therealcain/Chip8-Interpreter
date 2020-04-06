@@ -7,7 +7,7 @@
 #include "window.hpp"
 
 constexpr auto WINDOW_SIZE     = 15;
-constexpr auto FRAMERATE_LIMIT = 500;
+constexpr auto FRAMERATE_LIMIT = 60;
 
 int main(int argv, char* argc[])
 {
@@ -23,7 +23,7 @@ int main(int argv, char* argc[])
     if(argv == 2)
     {   
         Window window("Chip8 Emulator", WINDOW_SIZE * CHIP8_WIDTH, WINDOW_SIZE * CHIP8_HEIGHT, CHIP8_WIDTH, CHIP8_HEIGHT);
-        Chip8 chip(argc[1], window);
+        Chip8 chip(argc[1]);
 
         Uint32 start_fps;
         while(window.is_running())

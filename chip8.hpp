@@ -6,7 +6,6 @@
 #include <map>
 
 #include "cpu.hpp"
-#include "window.hpp"
 
 constexpr auto MEMORY_SIZE   = 0xFFF;
 constexpr auto STACK_SIZE    = 16;
@@ -23,7 +22,7 @@ class Chip8 : public CPU<STACK_SIZE,
                          CHIP8_HEIGHT> 
 {
 public:
-    Chip8(const std::string& file_path, Window& window);
+    Chip8(const std::string& file_path);
     ~Chip8() = default;
 
     void cycle() noexcept;
@@ -78,9 +77,6 @@ private:
     void OPCODE_FX65_Impl();
 
 private:
-    // Rendering
-    Window& window_ref;
-
     std::map<uint16_t              /*opcode*/, 
              std::function<void()> /*opcode impl*/> opcode_table;
 

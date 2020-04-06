@@ -9,8 +9,7 @@
 #include <random>
 #include <initializer_list>
 
-Chip8::Chip8(const std::string& file_path, Window& window)
-    : window_ref(window)
+Chip8::Chip8(const std::string& file_path)
 {
     std::ifstream file(file_path, std::ifstream::ate    | // start from the end
                                   std::ifstream::binary | // file is binary
@@ -172,6 +171,8 @@ void Chip8::cycle() noexcept
     std::cout << std::hex << get_memory_as_string(LOCATION_START, 1000) << std::endl;
     #endif // ENABLE_DEBUG_MODE
 
+    // sound.stop();
+
     fetch_opcode();
 
     // All instructions are 2 bytes long.
@@ -184,6 +185,16 @@ void Chip8::cycle() noexcept
     if(dt > 0)
     {
         dt--;
+    }
+
+    if(st > 0)
+    {
+        if(st == 1)
+        {
+            std::cout<< "Beep!" << std::endl;
+        }
+
+        st--;
     }
 }
 
@@ -468,9 +479,11 @@ void Chip8::OPCODE_FX15_Impl()
     dt = registers[inst_var.x];
 }
 
-// sound not implemented
 // Set sound timer = Vx
-void Chip8::OPCODE_FX18_Impl() {}
+void Chip8::OPCODE_FX18_Impl() 
+{
+    st = registers[inst_var.x];
+}
 
 // Set I = I + Vx
 void Chip8::OPCODE_FX1E_Impl()

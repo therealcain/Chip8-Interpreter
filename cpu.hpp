@@ -25,7 +25,7 @@ struct CPU
 
     // these are automatically decremented at a rate of 60Hz.
     uint8_t  dt;     // delay of the program
-    // uint8_t  st;   // delay of the sounds
+    uint8_t  st;   // delay of the sounds
 };
 
 #endif // CPU_HPP
