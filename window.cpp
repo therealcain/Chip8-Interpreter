@@ -28,6 +28,7 @@ Window::Window(const std::string& str, int width, int height, int chip_width, in
 
 void Window::event_handler(std::array<uint8_t, 16>& keypads) noexcept
 {
+    // which index the key is
     static std::map<uint8_t, SDL_Keycode> Keys {
         { 0,   SDLK_x }, { 1,  SDLK_1  }, { 2,   SDLK_2  },
         { 3,   SDLK_3 }, { 4,  SDLK_q  }, { 5,   SDLK_w  },
@@ -71,6 +72,7 @@ void Window::event_handler(std::array<uint8_t, 16>& keypads) noexcept
 
 void Window::update(std::array<uint32_t, 2048>& display) noexcept
 {
+    // clear the the render and assign the texture 
     SDL_UpdateTexture(texture, nullptr, display.data(), sizeof(decltype(display[0])) * m_chip_width);
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, texture, nullptr, nullptr);
