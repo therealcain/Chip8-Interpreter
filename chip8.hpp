@@ -124,8 +124,8 @@ private:
     static constexpr auto OPCODE_BNNN = 0xB000; // Jump to location nnn + V0
     static constexpr auto OPCODE_CXKK = 0xC000; // Set Vx = random byte AND kk
     static constexpr auto OPCODE_DXYN = 0xD000; // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision
-    static constexpr auto OPCODE_EX9E = 0xE09E; // Skip next instruction if key with the value of Vx is pressed
-    static constexpr auto OPCODE_EXA1 = 0xE0A1; // Skip next instruction if key with the value of Vx is not pressed
+    static constexpr auto OPCODE_EX9E = 0xE00E; // Skip next instruction if key with the value of Vx is pressed
+    static constexpr auto OPCODE_EXA1 = 0xE001; // Skip next instruction if key with the value of Vx is not pressed
     static constexpr auto OPCODE_FX07 = 0xF007; // Set Vx = delay timer value
     static constexpr auto OPCODE_FX0A = 0xF00A; // Wait for a key press, store the value of the key in Vx
     static constexpr auto OPCODE_FX15 = 0xF015; // Set delay timer = Vx

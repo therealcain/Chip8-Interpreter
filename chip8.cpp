@@ -190,210 +190,32 @@ void Chip8::cycle() noexcept
 void Chip8::call_opcodes() noexcept
 {
     // get the first nibble and check what type the opcode is
-    // switch(opcode & 0xF000)
-    // {
-    //     case 0x0000:
-    //     {
-    //         const uint16_t masked_opcode = opcode & 0x000F;  
-    //         std::cout << std::hex << masked_opcode << std::endl;
-
-    //         opcode_table[masked_opcode]();
-    //     }
-
-    //     case 0x1000: case 0x2000: case 0x3000: case 0x4000:
-    //     case 0x5000: case 0x6000: case 0x7000: case 0x9000:
-    //     case 0xA000: case 0xB000: case 0xC000: case 0xD000:
-    //     {
-    //         const uint16_t masked_opcode = opcode & 0xF000;  
-    //         std::cout << std::hex << masked_opcode << std::endl;
-
-    //         opcode_table[masked_opcode]();
-    //     }
-    //     break;
-
-    //     case 0x8000:
-    //     {
-    //         const uint16_t masked_opcode = opcode & 0xF00F;
-    //         std::cout << std::hex << +masked_opcode << std::endl;
-
-    //         opcode_table[masked_opcode]();
-    //     }
-
-    //     case 0xE000: case 0xF000:
-    //     {
-    //         const uint16_t masked_opcode = opcode & 0xF0FF;
-    //         std::cout << std::hex << +masked_opcode << std::endl;
-
-    //         // just to make sure memory will not go out of bounds
-    //         if(opcode_table.find(masked_opcode) != opcode_table.end())
-    //         {
-    //             opcode_table[masked_opcode]();
-    //         }
-    //     }
-    //     break;
-
-    //     default:
-    //     std::cout << "something is wrong with this opcode: " << std::hex << +opcode << std::endl;
-    //     break;
-    // }
-
-    // convert this to ^^
     switch(opcode & 0xF000)
     {
-        case 0x0000:
-            switch(opcode & 0x000F)
-            {
-                case 0x0000:
-                OPCODE_00E0_Impl();
-                break;
-                
-                case 0x000E:
-                OPCODE_00EE_Impl();
-                break;
-            }
-        break;
-        
-        case 0x1000:
-        OPCODE_1NNN_Impl();
+        case 0x0000: 
+        try {
+            opcode_table[opcode & 0x000F]();
+        } catch(const std::exception& e){};
         break;
 
-        case 0x2000:
-        OPCODE_2NNN_Impl();
+        case 0x1000: case 0x2000: case 0x3000: case 0x4000:
+        case 0x5000: case 0x6000: case 0x7000: case 0xA000:
+        case 0x9000: case 0xB000: case 0xC000: case 0xD000:
+        try {
+            opcode_table[opcode & 0xF000]();
+        } catch(const std::exception& e){};
         break;
 
-        case 0x3000:
-        OPCODE_3XKK_Impl();
-        break;
-
-        case 0x4000:
-        OPCODE_4XKK_Impl();
-        break;
-
-        case 0x5000:
-        OPCODE_5XY0_Impl();
-        break;
-
-        case 0x6000:
-        OPCODE_6XKK_Impl();
-        break;
-
-        case 0x7000:
-        OPCODE_7XKK_Impl();
-        break;
-
-        case 0x8000:
-            switch(opcode & 0x000F)
-            {
-                case 0x0000:
-                OPCODE_8XY0_Impl();
-                break;
-
-                case 0x0001:
-                OPCODE_8XY1_Impl();
-                break;
-
-                case 0x0002:
-                OPCODE_8XY2_Impl();
-                break;
-
-                case 0x0003:
-                OPCODE_8XY3_Impl();
-                break;
-
-                case 0x0004:
-                OPCODE_8XY4_Impl();
-                break;
-
-                case 0x0005:
-                OPCODE_8XY5_Impl();
-                break;
-
-                case 0x0006:
-                OPCODE_8XY6_Impl();
-                break;
-
-                case 0x0007:
-                OPCODE_8XY7_Impl();
-                break;
-
-                case 0x000E:
-                OPCODE_8XYE_Impl();
-                break;
-            }
-        break;
-
-        case 0x9000:
-        OPCODE_9XY0_Impl();
-        break;
-
-        case 0xA000:
-        OPCODE_ANNN_Impl();
-        break;
-
-        case 0xB000:
-        OPCODE_BNNN_Impl();
-        break;
-
-        case 0xC000:
-        OPCODE_CXKK_Impl();
-        break;
-
-        case 0xD000:
-        OPCODE_DXYN_Impl();
-        break;
-
-        case 0xE000:
-            switch(opcode & 0x000F)
-            {
-                case 0x000E:
-                OPCODE_EX9E_Impl();
-                break;
-
-                case 0x0001:
-                OPCODE_EXA1_Impl();
-                break;
-            }
+        case 0x8000: case 0xE000: 
+        try {
+            opcode_table[opcode & 0xF00F]();
+        } catch(const std::exception& e){};
         break;
 
         case 0xF000:
-            switch(opcode & 0x00FF)
-            {
-                case 0x0007:
-                OPCODE_FX07_Impl();     
-                break;
-
-                case 0x000A:
-                OPCODE_FX0A_Impl();
-                break;
-
-                case 0x0015:
-                OPCODE_FX15_Impl();
-                break;
-
-                case 0x0018:
-                OPCODE_FX18_Impl();
-                break;
-
-                case 0x001E:
-                OPCODE_FX1E_Impl();
-                break;
-
-                case 0x0029:
-                OPCODE_FX29_Impl();
-                break;
-
-                case 0x0033:
-                OPCODE_FX33_Impl();
-                break;
-
-                case 0x0055:
-                OPCODE_FX55_Impl();
-                break;
-
-                case 0x0065:
-                OPCODE_FX65_Impl();
-                break;
-            }
+        try {
+            opcode_table[opcode & 0xF0FF]();
+        } catch(const std::exception& e){};
         break;
     }
 }
