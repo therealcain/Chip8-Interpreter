@@ -23,7 +23,8 @@
                 }
             ],
             "preLaunchTask": "g++-7 build active file",
-            "miDebuggerPath": "/usr/bin/gdb"
+            "miDebuggerPath": "/usr/bin/gdb",
+            "coreDumpPath": "/home/eviatar/Documents/Projects/Chip8-Interpreter/core"
         }
     ]
 }

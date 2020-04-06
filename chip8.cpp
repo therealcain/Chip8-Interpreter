@@ -29,9 +29,6 @@ Chip8::Chip8(const std::string& file_path, Window& window)
    
         copy_fonts_to_memory();
 
-        // Configuring texture
-        window_ref.texture = SDL_CreateTexture(window_ref.renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, CHIP8_WIDTH, CHIP8_HEIGHT);
-
         // Starting position of CPU
         pc = LOCATION_START;
 
@@ -167,42 +164,6 @@ uint8_t Chip8::random_byte() const noexcept
     return distr(eng);
 }
 
-void Chip8::key_handling() noexcept
-{
-    static constexpr std::initializer_list<SDL_Keycode> KEYS = {
-        SDLK_x, SDLK_1, SDLK_2, SDLK_3,
-        SDLK_q, SDLK_w, SDLK_e, SDLK_a,
-        SDLK_s, SDLK_d, SDLK_z, SDLK_c,
-        SDLK_4, SDLK_r, SDLK_f, SDLK_v
-    };
-
-    while(SDL_PollEvent(&window_ref.event))
-    {
-        switch(window_ref.event.type)
-        {
-            case SDL_KEYDOWN:
-            for(auto key : KEYS)
-            {
-                if(window_ref.event.key.keysym.sym == key)
-                {
-                    keypads[key] = 1;
-                }
-            }
-            break;
-
-            case SDL_KEYUP:
-            for(auto key : KEYS)
-            {
-                if(window_ref.event.key.keysym.sym == key)
-                {
-                    keypads[key] = 0;
-                }
-            }
-            break;
-        }
-    }
-}
-
 void Chip8::cycle() noexcept
 {
     // printing out all of the memory
@@ -211,15 +172,13 @@ void Chip8::cycle() noexcept
     std::cout << std::hex << get_memory_as_string(LOCATION_START, 1000) << std::endl;
     #endif // ENABLE_DEBUG_MODE
 
+    fetch_opcode();
+
     // All instructions are 2 bytes long.
     pc += INSTRUCTION_LONG;
 
-    fetch_opcode();
     fetch_instruction_variables();
     call_opcodes();
-    render();
-
-    key_handling();
 
     // decrease delay timer
     if(dt > 0)
@@ -231,55 +190,214 @@ void Chip8::cycle() noexcept
 void Chip8::call_opcodes() noexcept
 {
     // get the first nibble and check what type the opcode is
+    // switch(opcode & 0xF000)
+    // {
+    //     case 0x0000:
+    //     {
+    //         const uint16_t masked_opcode = opcode & 0x000F;  
+    //         std::cout << std::hex << masked_opcode << std::endl;
+
+    //         opcode_table[masked_opcode]();
+    //     }
+
+    //     case 0x1000: case 0x2000: case 0x3000: case 0x4000:
+    //     case 0x5000: case 0x6000: case 0x7000: case 0x9000:
+    //     case 0xA000: case 0xB000: case 0xC000: case 0xD000:
+    //     {
+    //         const uint16_t masked_opcode = opcode & 0xF000;  
+    //         std::cout << std::hex << masked_opcode << std::endl;
+
+    //         opcode_table[masked_opcode]();
+    //     }
+    //     break;
+
+    //     case 0x8000:
+    //     {
+    //         const uint16_t masked_opcode = opcode & 0xF00F;
+    //         std::cout << std::hex << +masked_opcode << std::endl;
+
+    //         opcode_table[masked_opcode]();
+    //     }
+
+    //     case 0xE000: case 0xF000:
+    //     {
+    //         const uint16_t masked_opcode = opcode & 0xF0FF;
+    //         std::cout << std::hex << +masked_opcode << std::endl;
+
+    //         // just to make sure memory will not go out of bounds
+    //         if(opcode_table.find(masked_opcode) != opcode_table.end())
+    //         {
+    //             opcode_table[masked_opcode]();
+    //         }
+    //     }
+    //     break;
+
+    //     default:
+    //     std::cout << "something is wrong with this opcode: " << std::hex << +opcode << std::endl;
+    //     break;
+    // }
+
+    // convert this to ^^
     switch(opcode & 0xF000)
     {
-        case 0x1000: case 0x2000: case 0x3000: case 0x4000:
-        case 0x5000: case 0x6000: case 0x7000: case 0x9000:
-        case 0xA000: case 0xB000: case 0xC000: case 0xD000:
-        {
-            const uint16_t masked_opcode = opcode & 0xF000;
-
-            // just to make sure memory will not go out of bounds
-            if(opcode_table.find(masked_opcode) != opcode_table.end())
+        case 0x0000:
+            switch(opcode & 0x000F)
             {
-                opcode_table[masked_opcode]();
+                case 0x0000:
+                OPCODE_00E0_Impl();
+                break;
+                
+                case 0x000E:
+                OPCODE_00EE_Impl();
+                break;
             }
-        }
+        break;
+        
+        case 0x1000:
+        OPCODE_1NNN_Impl();
+        break;
+
+        case 0x2000:
+        OPCODE_2NNN_Impl();
+        break;
+
+        case 0x3000:
+        OPCODE_3XKK_Impl();
+        break;
+
+        case 0x4000:
+        OPCODE_4XKK_Impl();
+        break;
+
+        case 0x5000:
+        OPCODE_5XY0_Impl();
+        break;
+
+        case 0x6000:
+        OPCODE_6XKK_Impl();
+        break;
+
+        case 0x7000:
+        OPCODE_7XKK_Impl();
+        break;
+
+        case 0x8000:
+            switch(opcode & 0x000F)
+            {
+                case 0x0000:
+                OPCODE_8XY0_Impl();
+                break;
+
+                case 0x0001:
+                OPCODE_8XY1_Impl();
+                break;
+
+                case 0x0002:
+                OPCODE_8XY2_Impl();
+                break;
+
+                case 0x0003:
+                OPCODE_8XY3_Impl();
+                break;
+
+                case 0x0004:
+                OPCODE_8XY4_Impl();
+                break;
+
+                case 0x0005:
+                OPCODE_8XY5_Impl();
+                break;
+
+                case 0x0006:
+                OPCODE_8XY6_Impl();
+                break;
+
+                case 0x0007:
+                OPCODE_8XY7_Impl();
+                break;
+
+                case 0x000E:
+                OPCODE_8XYE_Impl();
+                break;
+            }
+        break;
+
+        case 0x9000:
+        OPCODE_9XY0_Impl();
+        break;
+
+        case 0xA000:
+        OPCODE_ANNN_Impl();
+        break;
+
+        case 0xB000:
+        OPCODE_BNNN_Impl();
+        break;
+
+        case 0xC000:
+        OPCODE_CXKK_Impl();
+        break;
+
+        case 0xD000:
+        OPCODE_DXYN_Impl();
+        break;
+
+        case 0xE000:
+            switch(opcode & 0x000F)
+            {
+                case 0x000E:
+                OPCODE_EX9E_Impl();
+                break;
+
+                case 0x0001:
+                OPCODE_EXA1_Impl();
+                break;
+            }
         break;
 
         case 0xF000:
-        {
-            const uint16_t masked_opcode = opcode & 0xF0FF;
-
-            // just to make sure memory will not go out of bounds
-            if(opcode_table.find(masked_opcode) != opcode_table.end())
+            switch(opcode & 0x00FF)
             {
-                opcode_table[masked_opcode]();
-            }
-        }
-        break;
+                case 0x0007:
+                OPCODE_FX07_Impl();     
+                break;
 
-        default:
-        {
-            const uint16_t masked_opcode = opcode & 0xF00F;
+                case 0x000A:
+                OPCODE_FX0A_Impl();
+                break;
 
-            // just to make sure memory will not go out of bounds
-            if(opcode_table.find(masked_opcode) != opcode_table.end())
-            {
-                opcode_table[masked_opcode]();
+                case 0x0015:
+                OPCODE_FX15_Impl();
+                break;
+
+                case 0x0018:
+                OPCODE_FX18_Impl();
+                break;
+
+                case 0x001E:
+                OPCODE_FX1E_Impl();
+                break;
+
+                case 0x0029:
+                OPCODE_FX29_Impl();
+                break;
+
+                case 0x0033:
+                OPCODE_FX33_Impl();
+                break;
+
+                case 0x0055:
+                OPCODE_FX55_Impl();
+                break;
+
+                case 0x0065:
+                OPCODE_FX65_Impl();
+                break;
             }
-        }
         break;
     }
 }
 
-void Chip8::render() noexcept
-{
-    SDL_UpdateTexture(window_ref.texture, nullptr, display.data(), sizeof(decltype(display[0])) * CHIP8_WIDTH);
-    SDL_RenderClear(window_ref.renderer);
-    SDL_RenderCopy(window_ref.renderer, window_ref.texture, nullptr, nullptr);
-    SDL_RenderPresent(window_ref.renderer);
-}
 
 // This is not implemented because i'm not trying to 
 // emulate the RCA 1802 CPU
@@ -383,7 +501,7 @@ void Chip8::OPCODE_8XY3_Impl()
 // If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
 void Chip8::OPCODE_8XY4_Impl()
 {
-    const auto sum = registers[inst_var.x] + registers[inst_var.y];
+    const uint16_t sum = registers[inst_var.x] + registers[inst_var.y];
     // checking a carry when sum bigger than a byte
     registers[REGISTER_SIZE - 1] = sum > 255 
         ? 1 : 0; 
@@ -459,8 +577,8 @@ void Chip8::OPCODE_DXYN_Impl()
     constexpr auto VIDEO_PIXEL = 0xFFFFFFFF;
     registers[REGISTER_SIZE - 1] = 0;
 
-    uint8_t x = registers[inst_var.x];
-	uint8_t y = registers[inst_var.y];
+    uint8_t x = registers[inst_var.x] % CHIP8_WIDTH;
+	uint8_t y = registers[inst_var.y] % CHIP8_HEIGHT;
 
     for (unsigned int row = 0; row < inst_var.n; row++)
 	{
@@ -487,7 +605,8 @@ void Chip8::OPCODE_DXYN_Impl()
 // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
 void Chip8::OPCODE_EX9E_Impl()
 {
-    if(keypads[registers[inst_var.x]])
+    const uint8_t key = registers[inst_var.x];
+    if(keypads[key])
     {
         pc += INSTRUCTION_LONG;
     }
@@ -496,7 +615,8 @@ void Chip8::OPCODE_EX9E_Impl()
 // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
 void Chip8::OPCODE_EXA1_Impl()
 {
-    if(not keypads[registers[inst_var.x]])
+    const uint8_t key = registers[inst_var.x];
+    if(not keypads[key])
     {
         pc += INSTRUCTION_LONG;
     }
@@ -514,9 +634,9 @@ void Chip8::OPCODE_FX0A_Impl()
     bool key_pressed = false;
     for(int i = 0; i < KEYPADS_SIZE; i++)
     {
-        if(keypads[i])
+        if(keypads[i] != 0)
         {
-            registers[inst_var.x] = keypads[i];
+            registers[inst_var.x] = i;
             key_pressed == true;
         }
     }
@@ -546,7 +666,7 @@ void Chip8::OPCODE_FX1E_Impl()
 // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx.
 void Chip8::OPCODE_FX29_Impl()
 {
-    I = 5 * registers[inst_var.x];
+    I = registers[inst_var.x];
 }   
 
 // The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.

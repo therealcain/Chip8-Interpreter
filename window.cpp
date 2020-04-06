@@ -2,9 +2,10 @@
 
 #include <exception>
 #include <iostream>
+#include <map>
 
-Window::Window(const std::string& str, int width, int height)
-    : m_width(width), m_height(height)
+Window::Window(const std::string& str, int width, int height, int chip_width, int chip_height)
+    : m_chip_width(chip_width)
 {
     // Initialize SDL
     if(SDL_Init(SDL_INIT_VIDEO) < 0)
@@ -22,19 +23,58 @@ Window::Window(const std::string& str, int width, int height)
     }
     
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, chip_width, chip_height);
 }
 
-bool Window::run() noexcept
+void Window::event_handler(std::array<uint8_t, 16>& keypads) noexcept
 {
+    static std::map<uint8_t, SDL_Keycode> Keys {
+        { 0,   SDLK_x }, { 1,  SDLK_1  }, { 2,   SDLK_2  },
+        { 3,   SDLK_3 }, { 4,  SDLK_q  }, { 5,   SDLK_w  },
+        { 6,   SDLK_e }, { 7,  SDLK_a  }, { 8,   SDLK_s  },
+        { 9,   SDLK_d }, { 0xA, SDLK_z } ,{ 0xB, SDLK_c  },
+        { 0xC, SDLK_4 }, { 0xD, SDLK_r }, { 0xE, SDLK_f  },
+        { 0xF, SDLK_v }
+    };
+
+    SDL_Event event;
     while(SDL_PollEvent(&event) != 0)
     {
         if(event.type == SDL_QUIT) 
         {
-            return false;
+            running = false;
+        }
+        
+        else if(event.type == SDL_KEYDOWN)
+        {
+            for(auto[index, key] : Keys)
+            {
+                if(event.key.keysym.sym == key)
+                {
+                    keypads[index] = 1;
+                }
+            }
+        }
+
+        else if(event.type == SDL_KEYUP)
+        {
+            for(auto[index, key] : Keys)
+            {
+                if(event.key.keysym.sym == key)
+                {
+                    keypads[index] = 0;
+                }
+            }
         }
     }
+}
 
-    return true;
+void Window::update(std::array<uint32_t, 2048>& display) noexcept
+{
+    SDL_UpdateTexture(texture, nullptr, display.data(), sizeof(decltype(display[0])) * m_chip_width);
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+    SDL_RenderPresent(renderer);
 }
 
 Window::~Window()

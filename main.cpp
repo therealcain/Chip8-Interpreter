@@ -20,12 +20,14 @@ int main(int argv, char* argc[])
     // the program won't start without a path or too much paths
     if(argv == 2)
     {   
-        Window window("Chip8 Emulator", WINDOW_SIZE * CHIP8_WIDTH, WINDOW_SIZE * CHIP8_HEIGHT);
+        Window window("Chip8 Emulator", WINDOW_SIZE * CHIP8_WIDTH, WINDOW_SIZE * CHIP8_HEIGHT, CHIP8_WIDTH, CHIP8_HEIGHT);
         Chip8 chip(argc[1], window);
 
-        while(window.run())
+        while(window.is_running())
         {
             chip.cycle();
+            window.event_handler(chip.keypads);
+            window.update(chip.display);
         }
 
         return EXIT_SUCCESS;
