@@ -6,17 +6,18 @@
 #include "chip8.hpp"
 #include "window.hpp"
 
-#if ENABLE_DEBUG_MODE
-    #if (not __linux__ && not _WIN32)
-    throw std::runtime_error("Debug mode is not available to your operating system!");
-    #endif // not linux && windows
-#endif // ENABLE_DEBUG_MODE
-
 constexpr auto WINDOW_SIZE     = 15;
 constexpr auto FRAMERATE_LIMIT = 500;
 
 int main(int argv, char* argc[])
 {
+    // Debug mode is operating system specific
+    #if ENABLE_DEBUG_MODE
+        #if (not __linux__ && not _WIN32)
+        throw std::runtime_error("Debug mode is not available to your operating system!");
+        #endif // not linux && windows
+    #endif // ENABLE_DEBUG_MODE
+    
     // the second argument is the path to the game
     // the program won't start without a path or too much paths
     if(argv == 2)
