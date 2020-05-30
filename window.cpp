@@ -42,29 +42,16 @@ void Window::event_handler(std::array<uint8_t, 16>& keypads) noexcept
     while(SDL_PollEvent(&event) != 0)
     {
         if(event.type == SDL_QUIT) 
-        {
             running = false;
-        }
         
-        else if(event.type == SDL_KEYDOWN)
+        for(auto[index, key] : Keys)
         {
-            for(auto[index, key] : Keys)
-            {
-                if(event.key.keysym.sym == key)
-                {
+            if(event.key.keysym.sym == key)
+            {   
+                if(event.type == SDL_KEYDOWN)
                     keypads[index] = 1;
-                }
-            }
-        }
-
-        else if(event.type == SDL_KEYUP)
-        {
-            for(auto[index, key] : Keys)
-            {
-                if(event.key.keysym.sym == key)
-                {
+                 else if(event.type == SDL_KEYUP)
                     keypads[index] = 0;
-                }
             }
         }
     }

@@ -7,13 +7,13 @@
 #include "window.hpp"
 
 constexpr auto WINDOW_SIZE     = 15;
-constexpr auto FRAMERATE_LIMIT = 60;
+constexpr auto FRAMERATE_LIMIT = 500;
 
 int main(int argv, char* argc[])
 {
     // Debug mode is operating system specific
     #if ENABLE_DEBUG_MODE
-        #if (not __linux__ && not _WIN32)
+        #if (!__linux__ && !_WIN32)
         throw std::runtime_error("Debug mode is not available to your operating system!");
         #endif // not linux && windows
     #endif // ENABLE_DEBUG_MODE
@@ -36,18 +36,13 @@ int main(int argv, char* argc[])
 
             // FPS Cap
             if(1000 / FRAMERATE_LIMIT > SDL_GetTicks() - start_fps)
-            {
                 SDL_Delay(1000 / FRAMERATE_LIMIT - (SDL_GetTicks() - start_fps));
-            }
         }
 
         return EXIT_SUCCESS;
     }
     else
-    {
         std::cerr << "Please specify a correct path!\n";
-    }
-    
 
     return EXIT_FAILURE;
 }

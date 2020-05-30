@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <random>
 #include <initializer_list>
+#include <limits>
 
 Chip8::Chip8(const std::string& file_path)
 {
@@ -160,6 +161,7 @@ uint8_t Chip8::random_byte() const noexcept
     std::random_device rd;
     std::mt19937 eng(rd());
     std::uniform_int_distribution<> distr(0, 255);
+    
     return distr(eng);
 }
 
@@ -171,8 +173,6 @@ void Chip8::cycle() noexcept
     std::cout << std::hex << get_memory_as_string(LOCATION_START, 1000) << std::endl;
     #endif // ENABLE_DEBUG_MODE
 
-    // sound.stop();
-
     fetch_opcode();
 
     // All instructions are 2 bytes long.
@@ -183,16 +183,12 @@ void Chip8::cycle() noexcept
 
     // decrease delay timer
     if(dt > 0)
-    {
         dt--;
-    }
 
     if(st > 0)
     {
         if(st == 1)
-        {
             std::cout<< "Beep!" << std::endl;
-        }
 
         st--;
     }
@@ -200,35 +196,30 @@ void Chip8::cycle() noexcept
 
 void Chip8::call_opcodes() noexcept
 {
-    // get the first nibble and check what type the opcode is
-    switch(opcode & 0xF000)
-    {
-        case 0x0000: 
-        try {
+    try {
+        // get the first nibble and check what type the opcode is
+        switch(opcode & 0xF000)
+        {
+            case 0x0000: 
             opcode_table[opcode & 0x000F]();
-        } catch(const std::exception& e){};
-        break;
+            break;
 
-        case 0x1000: case 0x2000: case 0x3000: case 0x4000:
-        case 0x5000: case 0x6000: case 0x7000: case 0xA000:
-        case 0x9000: case 0xB000: case 0xC000: case 0xD000:
-        try {
+            case 0x1000: case 0x2000: case 0x3000: case 0x4000:
+            case 0x5000: case 0x6000: case 0x7000: case 0xA000:
+            case 0x9000: case 0xB000: case 0xC000: case 0xD000:
             opcode_table[opcode & 0xF000]();
-        } catch(const std::exception& e){};
-        break;
+            break;
 
-        case 0x8000: case 0xE000: 
-        try {
+            case 0x8000: case 0xE000: 
             opcode_table[opcode & 0xF00F]();
-        } catch(const std::exception& e){};
-        break;
+            break;
 
-        case 0xF000:
-        try {
+            case 0xF000:
             opcode_table[opcode & 0xF0FF]();
-        } catch(const std::exception& e){};
-        break;
-    }
+            break;
+        }
+    } 
+    catch(const std::exception& e){};
 }
 
 
@@ -238,8 +229,7 @@ void Chip8::call_opcodes() noexcept
 // void Chip8::OPCODE_0NNN_Impl() {}
 
 // Clear the display.
-void Chip8::OPCODE_00E0_Impl()
-{
+void Chip8::OPCODE_00E0_Impl() {
     std::fill(display.begin(), display.end(), 0);
 }
 
@@ -251,8 +241,7 @@ void Chip8::OPCODE_00EE_Impl()
 }
 
 // Jump to location nnn
-void Chip8::OPCODE_1NNN_Impl()
-{
+void Chip8::OPCODE_1NNN_Impl() {
     pc = inst_var.nnn;
 }  
 
@@ -268,62 +257,50 @@ void Chip8::OPCODE_2NNN_Impl()
 void Chip8::OPCODE_3XKK_Impl()
 {
     if(registers[inst_var.x] == inst_var.kk)
-    {
         pc += INSTRUCTION_LONG;
-    }
 }
 
 // Skip next instruction if Vx != kk
 void Chip8::OPCODE_4XKK_Impl()
 {
     if(registers[inst_var.x] != inst_var.kk)
-    {
         pc += INSTRUCTION_LONG;
-    }
 }
 
 // Skip next instruction if Vx = Vy
 void Chip8::OPCODE_5XY0_Impl()
 {
     if(registers[inst_var.x] == registers[inst_var.y] )
-    {
         pc += INSTRUCTION_LONG;
-    }
 }
 
 // Set Vx = kk
-void Chip8::OPCODE_6XKK_Impl()
-{
+void Chip8::OPCODE_6XKK_Impl() {
     registers[inst_var.x] = inst_var.kk;
 }
 
 // Set Vx = Vx + kk
-void Chip8::OPCODE_7XKK_Impl()
-{
+void Chip8::OPCODE_7XKK_Impl() {
     registers[inst_var.x] += inst_var.kk;
 }
 
 // Set Vx = Vy
-void Chip8::OPCODE_8XY0_Impl()
-{
+void Chip8::OPCODE_8XY0_Impl() {
     registers[inst_var.x] = registers[inst_var.y];
 }
 
 // Set Vx = Vx OR Vy
-void Chip8::OPCODE_8XY1_Impl()
-{
+void Chip8::OPCODE_8XY1_Impl() {
     registers[inst_var.x] |= registers[inst_var.y];
 }   
 
 // Set Vx = Vx AND Vy
-void Chip8::OPCODE_8XY2_Impl()
-{
+void Chip8::OPCODE_8XY2_Impl() {
     registers[inst_var.x] &= registers[inst_var.y];
 }
 
 // Set Vx = Vx XOR Vy
-void Chip8::OPCODE_8XY3_Impl()
-{
+void Chip8::OPCODE_8XY3_Impl() {
     registers[inst_var.x] ^= registers[inst_var.y];
 }
 
@@ -332,8 +309,7 @@ void Chip8::OPCODE_8XY4_Impl()
 {
     const uint16_t sum = registers[inst_var.x] + registers[inst_var.y];
     // checking a carry when sum bigger than a byte
-    registers[REGISTER_SIZE - 1] = sum > 255 
-        ? 1 : 0; 
+    registers[REGISTER_SIZE - 1] = sum > 255;
 
     registers[inst_var.x] = sum & 0xFF;
 }
@@ -341,8 +317,7 @@ void Chip8::OPCODE_8XY4_Impl()
 // Set Vx = Vx - Vy, set VF = NOT borrow
 void Chip8::OPCODE_8XY5_Impl()
 {
-    registers[REGISTER_SIZE - 1] = registers[inst_var.x] > registers[inst_var.y] 
-        ? 1 : 0;
+    registers[REGISTER_SIZE - 1] = registers[inst_var.x] > registers[inst_var.y];
 
     registers[inst_var.x] -= registers[inst_var.y];
 }
@@ -357,8 +332,7 @@ void Chip8::OPCODE_8XY6_Impl()
 // Set Vx = Vy - Vx, set VF = NOT borrow
 void Chip8::OPCODE_8XY7_Impl()
 {
-    registers[REGISTER_SIZE - 1] = registers[inst_var.y] > registers[inst_var.x] 
-        ? 1 : 0;
+    registers[REGISTER_SIZE - 1] = registers[inst_var.y] > registers[inst_var.x];
 
     registers[inst_var.x] = registers[inst_var.y] - registers[inst_var.x];
 }
@@ -374,33 +348,27 @@ void Chip8::OPCODE_8XYE_Impl()
 void Chip8::OPCODE_9XY0_Impl()
 {
     if(registers[inst_var.x] != registers[inst_var.y])
-    {
         pc += INSTRUCTION_LONG;
-    }
 }
 
 // Set I = nnn
-void Chip8::OPCODE_ANNN_Impl()
-{
+void Chip8::OPCODE_ANNN_Impl() {
     I = inst_var.nnn;
 }
 
 // Jump to location nnn + V0
-void Chip8::OPCODE_BNNN_Impl()
-{
+void Chip8::OPCODE_BNNN_Impl() {
     pc = registers[0] + inst_var.nnn;
 }
 
 // Set Vx = random byte AND kk
-void Chip8::OPCODE_CXKK_Impl()
-{
+void Chip8::OPCODE_CXKK_Impl() {
     registers[inst_var.x] = random_byte() & inst_var.kk;
 }
 
 // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision
 void Chip8::OPCODE_DXYN_Impl()
 {
-    constexpr auto VIDEO_PIXEL = 0xFFFFFFFF;
     registers[REGISTER_SIZE - 1] = 0;
 
     uint8_t x = registers[inst_var.x] % CHIP8_WIDTH;
@@ -417,12 +385,10 @@ void Chip8::OPCODE_DXYN_Impl()
 
 			if (pixel != 0)
 			{
-				if (display[array_index] == VIDEO_PIXEL)
-				{
+				if (display[array_index] == std::numeric_limits<unsigned int>::max()) 
 					registers[0xF] = 1;
-				}
 
-				display[array_index] ^= VIDEO_PIXEL;
+				display[array_index] ^= std::numeric_limits<unsigned int>::max();
 			}
 		}
 	}
@@ -433,9 +399,7 @@ void Chip8::OPCODE_EX9E_Impl()
 {
     const uint8_t key = registers[inst_var.x];
     if(keypads[key])
-    {
         pc += INSTRUCTION_LONG;
-    }
 }
 
 // Skip next instruction if key with the value of Vx is not pressed
@@ -443,14 +407,11 @@ void Chip8::OPCODE_EXA1_Impl()
 {
     const uint8_t key = registers[inst_var.x];
     if(not keypads[key])
-    {
         pc += INSTRUCTION_LONG;
-    }
 }
 
 // Set Vx = delay timer value
-void Chip8::OPCODE_FX07_Impl()
-{
+void Chip8::OPCODE_FX07_Impl() {
     registers[inst_var.x] = dt;
 }
 
@@ -463,37 +424,31 @@ void Chip8::OPCODE_FX0A_Impl()
         if(keypads[i] != 0)
         {
             registers[inst_var.x] = i;
-            key_pressed == true;
+            key_pressed = true;
         }
     }
 
     if(not key_pressed)
-    {
         pc -= INSTRUCTION_LONG;
-    }
 }
 
 // Set delay timer = Vx
-void Chip8::OPCODE_FX15_Impl()
-{
+void Chip8::OPCODE_FX15_Impl() {
     dt = registers[inst_var.x];
 }
 
 // Set sound timer = Vx
-void Chip8::OPCODE_FX18_Impl() 
-{
+void Chip8::OPCODE_FX18_Impl() {
     st = registers[inst_var.x];
 }
 
 // Set I = I + Vx
-void Chip8::OPCODE_FX1E_Impl()
-{
+void Chip8::OPCODE_FX1E_Impl() {
     I += registers[inst_var.x];
 }
 
 // Set I = location of sprite for digit Vx
-void Chip8::OPCODE_FX29_Impl()
-{
+void Chip8::OPCODE_FX29_Impl() {
     I = registers[inst_var.x];
 }   
 
@@ -515,16 +470,12 @@ void Chip8::OPCODE_FX33_Impl()
 void Chip8::OPCODE_FX55_Impl()
 {
     for(uint8_t i = 0; i <= inst_var.x; i++) 
-    {
         memory[I + i] = registers[i];
-    }
 }
 
 // Read registers V0 through Vx from memory starting at location I
 void Chip8::OPCODE_FX65_Impl()
 {
     for(uint8_t i = 0; i <= inst_var.x; i++)
-    {
         registers[i] = memory[I + i];
-    }
 }
